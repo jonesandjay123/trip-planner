@@ -75,7 +75,7 @@ export default function CardModal({ card, onSave, onClose }) {
     <div className="modal-overlay" onClick={handleBackdropClick}>
       <div className="modal-card">
         <div className="modal-header">
-          <h2>{isNew ? '➕ 新增景點' : '✏️ 編輯景點'}</h2>
+          <h2>{isNew ? '➕ 新增行程' : '✏️ 編輯行程'}</h2>
         </div>
 
         <div className="modal-body">
@@ -86,7 +86,7 @@ export default function CardModal({ card, onSave, onClose }) {
               name="title"
               value={form.title}
               onChange={handleChange}
-              placeholder="景點名稱"
+              placeholder="行程名稱"
               autoFocus
             />
           </label>

@@ -330,7 +330,7 @@ export default function App() {
           cardIds={state.unscheduled}
           cardMap={cardMap}
           onAddNew={openNewCardModal}
-          onEdit={openEditCardModal}
+          onEdit={openEditModal}
           onAddComment={handleAddComment}
         />
       </div>

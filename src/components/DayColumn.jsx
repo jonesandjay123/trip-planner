@@ -12,10 +12,28 @@ function formatDayHeader(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function DayColumn({ date, zones, cardMap }) {
+export default function DayColumn({ date, zones, cardMap, onSwap, isFirst, isLast }) {
   return (
     <div className="day-column">
-      <div className="day-header">{formatDayHeader(date)}</div>
+      <div className="day-header">
+        <button
+          className="swap-btn"
+          onClick={() => onSwap(date, -1)}
+          disabled={isFirst}
+          title="往左移"
+        >
+          ◀
+        </button>
+        <span className="day-date">{formatDayHeader(date)}</span>
+        <button
+          className="swap-btn"
+          onClick={() => onSwap(date, 1)}
+          disabled={isLast}
+          title="往右移"
+        >
+          ▶
+        </button>
+      </div>
       <div className="day-zones">
         {ZONES.map((zone) => (
           <DropZone

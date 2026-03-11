@@ -34,8 +34,9 @@ function createInitialState() {
   return {
     tripName: 'Tokyo May 2026',
     startDate: '2026-05-01',
-    endDate: '2026-05-06',
-    days: generateDays('2026-05-01', '2026-05-06'),
+    endDate: '2026-05-07',
+    dayOrder: ['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06', '2026-05-07'],
+    days: generateDays('2026-05-01', '2026-05-07'),
     unscheduled: seedCards.map((c) => c.id),
   };
 }
@@ -207,8 +208,20 @@ export default function App() {
     }
   }
 
+  function handleSwapDay(date, direction) {
+    setState((prev) => {
+      const order = prev.dayOrder || Object.keys(prev.days).sort();
+      const idx = order.indexOf(date);
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= order.length) return prev;
+      const newOrder = [...order];
+      [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
+      return { ...prev, dayOrder: newOrder };
+    });
+  }
+
   const activeCard = activeId ? cardMap[activeId] : null;
-  const dayEntries = Object.entries(state.days).sort(([a], [b]) => a.localeCompare(b));
+  const dayOrder = state.dayOrder || Object.keys(state.days).sort();
 
   return (
     <DndContext
@@ -229,12 +242,15 @@ export default function App() {
         />
 
         <div className="days-container">
-          {dayEntries.map(([date, zones]) => (
+          {dayOrder.map((date, idx) => (
             <DayColumn
               key={date}
               date={date}
-              zones={zones}
+              zones={state.days[date]}
               cardMap={cardMap}
+              onSwap={handleSwapDay}
+              isFirst={idx === 0}
+              isLast={idx === dayOrder.length - 1}
             />
           ))}
         </div>

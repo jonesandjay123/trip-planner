@@ -7,7 +7,14 @@ export function useLocalStorage(initialValue) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Auto-reset if version mismatch
+        if (parsed._version !== initialValue._version) {
+          console.log('State version mismatch, resetting to new defaults');
+          localStorage.removeItem(STORAGE_KEY);
+          return initialValue;
+        }
+        return parsed;
       }
     } catch (e) {
       console.error('Failed to load from localStorage:', e);

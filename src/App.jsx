@@ -18,6 +18,7 @@ import CandidatePool from './components/CandidatePool';
 import Card from './components/Card';
 
 const ZONES = ['morning', 'afternoon', 'evening', 'flexible'];
+const STATE_VERSION = 2; // bump this to force localStorage reset
 
 function generateDays(startDate, endDate) {
   const days = {};
@@ -32,6 +33,7 @@ function generateDays(startDate, endDate) {
 
 function createInitialState() {
   return {
+    _version: STATE_VERSION,
     tripName: 'Tokyo May 2026',
     startDate: '2026-05-01',
     endDate: '2026-05-07',

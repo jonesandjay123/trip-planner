@@ -1,0 +1,395 @@
+/* ===== Reset & Base ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif;
+  background: #f5f3f0;
+  color: #333;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== App Layout ===== */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ===== Header ===== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #ff8a65 0%, #ff7043 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-icon {
+  font-size: 28px;
+}
+
+.trip-name {
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  border-bottom: 2px dashed rgba(255, 255, 255, 0.5);
+  padding-bottom: 2px;
+}
+
+.trip-name:hover {
+  border-bottom-color: white;
+}
+
+.trip-name-input {
+  font-size: 22px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid white;
+  border-radius: 6px;
+  color: white;
+  padding: 2px 8px;
+  outline: none;
+  min-width: 200px;
+}
+
+.date-range {
+  font-size: 14px;
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-export {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.btn-export:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.btn-reset {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btn-reset:hover {
+  background: rgba(255, 0, 0, 0.25);
+}
+
+/* ===== Days Container ===== */
+.days-container {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  overflow-x: auto;
+  flex: 1;
+  align-items: flex-start;
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar styling */
+.days-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.days-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.days-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+/* ===== Day Column ===== */
+.day-column {
+  min-width: 260px;
+  max-width: 280px;
+  flex-shrink: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.day-header {
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+  color: #555;
+}
+
+.day-zones {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ===== Drop Zone ===== */
+.drop-zone {
+  padding: 8px;
+  min-height: 80px;
+  transition: background-color 0.2s;
+}
+
+.drop-zone-over {
+  outline: 2px dashed #ff7043;
+  outline-offset: -2px;
+}
+
+.zone-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+.zone-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 40px;
+}
+
+.zone-empty {
+  font-size: 12px;
+  color: #bbb;
+  text-align: center;
+  padding: 10px;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+}
+
+/* ===== Card ===== */
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: grab;
+  transition: box-shadow 0.2s, transform 0.15s;
+  border-left: 3px solid #ff8a65;
+  user-select: none;
+  touch-action: none;
+}
+
+.card:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.card-overlay {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transform: rotate(2deg) scale(1.05);
+  opacity: 0.95;
+}
+
+.card-zone-match {
+  border-left-color: #4caf50;
+  background: #f9fff9;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.card-subtitle {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.card-meta {
+  font-size: 11px;
+  color: #777;
+  margin-bottom: 2px;
+}
+
+.card-area {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 3px;
+}
+
+.card-note {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 3px;
+  line-height: 1.3;
+}
+
+.card-tags {
+  font-size: 10px;
+  color: #aaa;
+}
+
+/* ===== Candidate Pool ===== */
+.candidate-pool {
+  background: #efe8df;
+  border-top: 2px solid #e0d5c8;
+  padding: 16px 20px;
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+}
+
+.candidate-pool-over {
+  background: #e8ddd0;
+}
+
+.pool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pool-icon {
+  font-size: 20px;
+}
+
+.pool-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #555;
+}
+
+.pool-count {
+  font-size: 12px;
+  color: #999;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.pool-cards {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  min-height: 60px;
+  align-items: flex-start;
+}
+
+.pool-cards::-webkit-scrollbar {
+  height: 6px;
+}
+
+.pool-cards::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.pool-cards .card {
+  min-width: 200px;
+  max-width: 220px;
+  flex-shrink: 0;
+}
+
+.pool-empty {
+  font-size: 13px;
+  color: #aaa;
+  padding: 16px;
+  text-align: center;
+  width: 100%;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 16px;
+  }
+
+  .trip-name {
+    font-size: 18px;
+  }
+
+  .days-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .day-column {
+    min-width: 240px;
+  }
+
+  .candidate-pool {
+    padding: 12px;
+  }
+
+  .pool-cards .card {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .date-range {
+    font-size: 12px;
+  }
+
+  .day-column {
+    min-width: 220px;
+    max-width: 260px;
+  }
+}

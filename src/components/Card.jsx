@@ -11,7 +11,11 @@ const ZONE_LABELS = {
 
 function formatCommentDate(timestamp) {
   const d = new Date(timestamp);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const h = d.getHours().toString().padStart(2, '0');
+  const m = d.getMinutes().toString().padStart(2, '0');
+  return `${month}/${day} ${h}:${m}`;
 }
 
 function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEdit, onAddComment }) {

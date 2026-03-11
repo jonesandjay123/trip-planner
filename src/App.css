@@ -428,6 +428,231 @@ body {
   width: 100%;
 }
 
+/* ===== Card Header Actions ===== */
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.card-edit-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.card-edit-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* ===== Card Comments ===== */
+.card-comments {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #e0e0e0;
+}
+
+.card-comment {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 3px;
+}
+
+.card-compact-comments {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.card-comment-input {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.card-comment-input input {
+  flex: 1;
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  background: #fafafa;
+}
+
+.card-comment-input input:focus {
+  border-color: #ff8a65;
+  background: white;
+}
+
+.card-comment-input button {
+  background: #ff8a65;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.card-comment-input button:disabled {
+  background: #ddd;
+  cursor: default;
+}
+
+.card-comment-input button:hover:not(:disabled) {
+  background: #ff7043;
+}
+
+/* ===== Add Card Button ===== */
+.btn-add-card {
+  margin-left: auto;
+  background: rgba(0, 0, 0, 0.06);
+  color: #555;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px dashed #bbb;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-card:hover {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: #888;
+}
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalSlideIn 0.2s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  padding: 20px 24px 0;
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.modal-body {
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.modal-field input,
+.modal-field select,
+.modal-field textarea {
+  font-size: 14px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  outline: none;
+  background: #fafafa;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.modal-field input:focus,
+.modal-field select:focus,
+.modal-field textarea:focus {
+  border-color: #ff8a65;
+  background: white;
+}
+
+.modal-field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px 20px;
+  justify-content: flex-end;
+}
+
+.modal-btn-save {
+  background: #ff8a65;
+  color: white;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.modal-btn-save:hover {
+  background: #ff7043;
+}
+
+.modal-btn-cancel {
+  background: #f5f5f5;
+  color: #666;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.modal-btn-cancel:hover {
+  background: #e0e0e0;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
   .header {

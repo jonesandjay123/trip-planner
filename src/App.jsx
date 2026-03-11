@@ -16,9 +16,10 @@ import Header from './components/Header';
 import DayColumn from './components/DayColumn';
 import CandidatePool from './components/CandidatePool';
 import Card from './components/Card';
+import CardModal from './components/CardModal';
 
 const ZONES = ['morning', 'afternoon', 'evening', 'flexible'];
-const STATE_VERSION = 2; // bump this to force localStorage reset
+const STATE_VERSION = 3; // bump to force localStorage reset
 
 function generateDays(startDate, endDate) {
   const days = {};
@@ -40,14 +41,18 @@ function createInitialState() {
     dayOrder: ['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06', '2026-05-07'],
     days: generateDays('2026-05-01', '2026-05-07'),
     unscheduled: seedCards.map((c) => c.id),
+    cards: Object.fromEntries(seedCards.map((c) => [c.id, { ...c, comments: [] }])),
   };
 }
-
-const cardMap = Object.fromEntries(seedCards.map((c) => [c.id, c]));
 
 export default function App() {
   const [state, setState, resetState] = useLocalStorage(createInitialState());
   const [activeId, setActiveId] = useState(null);
+  const [modalCard, setModalCard] = useState(null); // card object or null
+  const [modalOpen, setModalOpen] = useState(false);
+  const [isNewCard, setIsNewCard] = useState(false);
+
+  const cardMap = state.cards || {};
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -73,10 +78,8 @@ export default function App() {
 
   const findContainer = useCallback(
     (id) => {
-      // Check if id IS a container
       if (id === 'unscheduled') return id;
       if (typeof id === 'string' && id.includes('::')) return id;
-      // Otherwise look up in cardLocations
       return cardLocations[id]?.containerId || null;
     },
     [cardLocations]
@@ -116,6 +119,61 @@ export default function App() {
     [setState]
   );
 
+  // --- Modal handlers ---
+  function openEditModal(card) {
+    setModalCard(card);
+    setIsNewCard(false);
+    setModalOpen(true);
+  }
+
+  function openNewCardModal() {
+    setModalCard(null);
+    setIsNewCard(true);
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setModalCard(null);
+    setIsNewCard(false);
+  }
+
+  function handleModalSave(updatedCard, isNew) {
+    setState((prev) => {
+      const newCards = { ...prev.cards, [updatedCard.id]: updatedCard };
+      if (isNew) {
+        return {
+          ...prev,
+          cards: newCards,
+          unscheduled: [...prev.unscheduled, updatedCard.id],
+        };
+      }
+      return { ...prev, cards: newCards };
+    });
+    closeModal();
+  }
+
+  // --- Comment handler ---
+  function handleAddComment(cardId, text) {
+    if (!text.trim()) return;
+    const comment = {
+      text: text.trim(),
+      timestamp: new Date().toISOString(),
+      author: 'Jones',
+    };
+    setState((prev) => ({
+      ...prev,
+      cards: {
+        ...prev.cards,
+        [cardId]: {
+          ...prev.cards[cardId],
+          comments: [...(prev.cards[cardId]?.comments || []), comment],
+        },
+      },
+    }));
+  }
+
+  // --- Drag handlers ---
   function handleDragStart(event) {
     setActiveId(event.active.id);
   }
@@ -127,7 +185,6 @@ export default function App() {
     const activeContainer = findContainer(active.id);
     let overContainer = findContainer(over.id);
 
-    // If over.id is a container itself (empty zone), use it directly
     if (!overContainer) {
       overContainer = over.id;
     }
@@ -143,7 +200,6 @@ export default function App() {
 
       let newIndex;
       if (over.id === overContainer || overContainer === over.id) {
-        // Dropped on the container itself (empty zone)
         newIndex = overItems.length;
       } else {
         newIndex = overIndex >= 0 ? overIndex : overItems.length;
@@ -173,7 +229,6 @@ export default function App() {
     if (!activeContainer || !overContainer) return;
 
     if (activeContainer === overContainer) {
-      // Reorder within same container
       const items = getContainerItems(activeContainer);
       const oldIndex = items.indexOf(active.id);
       const newIndex = items.indexOf(over.id);
@@ -253,16 +308,30 @@ export default function App() {
               onSwap={handleSwapDay}
               isFirst={idx === 0}
               isLast={idx === dayOrder.length - 1}
+              onEditCard={openEditModal}
+              onAddComment={handleAddComment}
             />
           ))}
         </div>
 
-        <CandidatePool cardIds={state.unscheduled} cardMap={cardMap} />
+        <CandidatePool
+          cardIds={state.unscheduled}
+          cardMap={cardMap}
+          onAddNew={openNewCardModal}
+        />
       </div>
 
       <DragOverlay dropAnimation={null}>
         {activeCard ? <Card card={activeCard} isDragOverlay /> : null}
       </DragOverlay>
+
+      {modalOpen && (
+        <CardModal
+          card={modalCard}
+          onSave={handleModalSave}
+          onClose={closeModal}
+        />
+      )}
     </DndContext>
   );
 }

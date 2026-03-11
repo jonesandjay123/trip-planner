@@ -10,7 +10,7 @@ const ZONE_CONFIG = {
   flexible: { label: '🔄 彈性', color: '#e8f5e9' },
 };
 
-export default function DropZone({ zone, cardIds, cardMap, date }) {
+export default function DropZone({ zone, cardIds, cardMap, date, onEditCard, onAddComment }) {
   const containerId = `${date}::${zone}`;
   const config = ZONE_CONFIG[zone];
 
@@ -34,7 +34,16 @@ export default function DropZone({ zone, cardIds, cardMap, date }) {
           {cardIds.map((id) => {
             const card = cardMap[id];
             if (!card) return null;
-            return <Card key={id} card={card} currentZone={zone} inPool={false} />;
+            return (
+              <Card
+                key={id}
+                card={card}
+                currentZone={zone}
+                inPool={false}
+                onEdit={onEditCard}
+                onAddComment={onAddComment}
+              />
+            );
           })}
         </div>
       </SortableContext>

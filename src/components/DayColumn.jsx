@@ -12,7 +12,7 @@ function formatDayHeader(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function DayColumn({ date, zones, cardMap, onSwap, isFirst, isLast }) {
+export default function DayColumn({ date, zones, cardMap, onSwap, isFirst, isLast, onEditCard, onAddComment }) {
   return (
     <div className="day-column">
       <div className="day-header">
@@ -42,6 +42,8 @@ export default function DayColumn({ date, zones, cardMap, onSwap, isFirst, isLas
             date={date}
             cardIds={zones[zone] || []}
             cardMap={cardMap}
+            onEditCard={onEditCard}
+            onAddComment={onAddComment}
           />
         ))}
       </div>

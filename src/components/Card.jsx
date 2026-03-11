@@ -9,8 +9,15 @@ const ZONE_LABELS = {
   flexible: '🔄 彈性',
 };
 
-function CardContent({ card, isDragOverlay, currentZone, compact, onToggle }) {
+function formatCommentDate(timestamp) {
+  const d = new Date(timestamp);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEdit, onAddComment }) {
+  const [commentText, setCommentText] = useState('');
   const zoneMatch = currentZone && card.zone === currentZone;
+  const comments = card.comments || [];
 
   if (compact) {
     return (
@@ -18,6 +25,11 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle }) {
         <div className="card-compact-row">
           <span className="card-compact-title">📍 {card.title}</span>
           <span className="card-compact-duration">{card.duration}</span>
+          {comments.length > 0 && (
+            <span className="card-compact-comments" title={`${comments.length} 則留言`}>
+              💬{comments.length}
+            </span>
+          )}
           <button
             className="card-expand-btn"
             onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
@@ -30,19 +42,38 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle }) {
     );
   }
 
+  function handleSubmitComment(e) {
+    e.stopPropagation();
+    if (commentText.trim() && onAddComment) {
+      onAddComment(card.id, commentText);
+      setCommentText('');
+    }
+  }
+
   return (
     <div className={`card ${isDragOverlay ? 'card-overlay' : ''} ${zoneMatch ? 'card-zone-match' : ''}`}>
       <div className="card-header-row">
         <div className="card-title">📍 {card.title}</div>
-        {onToggle && (
-          <button
-            className="card-expand-btn"
-            onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            title="收合"
-          >
-            ▲
-          </button>
-        )}
+        <div className="card-header-actions">
+          {onEdit && (
+            <button
+              className="card-edit-btn"
+              onClick={(e) => { e.stopPropagation(); onEdit(card); }}
+              title="編輯"
+            >
+              ✏️
+            </button>
+          )}
+          {onToggle && (
+            <button
+              className="card-expand-btn"
+              onClick={(e) => { e.stopPropagation(); onToggle(); }}
+              title="收合"
+            >
+              ▲
+            </button>
+          )}
+        </div>
       </div>
       <div className="card-subtitle">{card.subtitle}</div>
       <div className="card-meta">
@@ -51,16 +82,47 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle }) {
       <div className="card-area">📍 {card.area}</div>
       {card.note && <div className="card-note">💡 {card.note}</div>}
       <div className="card-tags">
-        🏷️ {card.tags.join(' · ')}
+        🏷️ {(card.tags || []).join(' · ')}
       </div>
+
+      {/* Comments section */}
+      {comments.length > 0 && (
+        <div className="card-comments">
+          {comments.map((c, i) => (
+            <div key={i} className="card-comment">
+              💬 {c.author} ({formatCommentDate(c.timestamp)}): {c.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quick comment input - only in day columns (not pool, not overlay) */}
+      {onAddComment && (
+        <div className="card-comment-input" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="text"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSubmitComment(e); }}
+            placeholder="快速留言..."
+            onPointerDown={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={handleSubmitComment}
+            onPointerDown={(e) => e.stopPropagation()}
+            disabled={!commentText.trim()}
+          >
+            ➤
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function Card({ card, isDragOverlay, currentZone, inPool }) {
+export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onAddComment }) {
   const [expanded, setExpanded] = useState(false);
 
-  // Cards in pool always show full detail; cards in day columns default to compact
   const showCompact = !inPool && !expanded && !isDragOverlay;
 
   const content = (
@@ -70,6 +132,8 @@ export default function Card({ card, isDragOverlay, currentZone, inPool }) {
       currentZone={currentZone}
       compact={showCompact}
       onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
+      onEdit={!inPool && !isDragOverlay && expanded ? onEdit : undefined}
+      onAddComment={!inPool && !isDragOverlay && expanded ? onAddComment : undefined}
     />
   );
 

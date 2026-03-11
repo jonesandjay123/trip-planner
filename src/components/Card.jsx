@@ -132,8 +132,8 @@ export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit,
       currentZone={currentZone}
       compact={showCompact}
       onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
-      onEdit={!inPool && !isDragOverlay && expanded ? onEdit : undefined}
-      onAddComment={!inPool && !isDragOverlay && expanded ? onAddComment : undefined}
+      onEdit={!isDragOverlay && (inPool || expanded) ? onEdit : undefined}
+      onAddComment={!isDragOverlay && (inPool || expanded) ? onAddComment : undefined}
     />
   );
 

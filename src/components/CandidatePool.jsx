@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import Card from './Card';
 
-export default function CandidatePool({ cardIds, cardMap, onAddNew }) {
+export default function CandidatePool({ cardIds, cardMap, onAddNew, onEdit, onAddComment }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled' });
 
   return (
@@ -28,7 +28,7 @@ export default function CandidatePool({ cardIds, cardMap, onAddNew }) {
           {cardIds.map((id) => {
             const card = cardMap[id];
             if (!card) return null;
-            return <Card key={id} card={card} inPool />;
+            return <Card key={id} card={card} inPool onEdit={onEdit} onAddComment={onAddComment} />;
           })}
         </div>
       </SortableContext>

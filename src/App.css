@@ -272,6 +272,54 @@ body {
   background: #f9fff9;
 }
 
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.card-compact {
+  padding: 6px 10px;
+}
+
+.card-compact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-compact-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  flex: 1;
+}
+
+.card-compact-duration {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.card-expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: #aaa;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.card-expand-btn:hover {
+  background: rgba(0,0,0,0.06);
+  color: #666;
+}
+
 .card-title {
   font-size: 14px;
   font-weight: 700;

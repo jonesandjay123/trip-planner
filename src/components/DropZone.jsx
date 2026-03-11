@@ -34,7 +34,7 @@ export default function DropZone({ zone, cardIds, cardMap, date }) {
           {cardIds.map((id) => {
             const card = cardMap[id];
             if (!card) return null;
-            return <Card key={id} card={card} currentZone={zone} />;
+            return <Card key={id} card={card} currentZone={zone} inPool={false} />;
           })}
         </div>
       </SortableContext>

@@ -25,7 +25,7 @@ export default function CandidatePool({ cardIds, cardMap }) {
           {cardIds.map((id) => {
             const card = cardMap[id];
             if (!card) return null;
-            return <Card key={id} card={card} />;
+            return <Card key={id} card={card} inPool />;
           })}
         </div>
       </SortableContext>

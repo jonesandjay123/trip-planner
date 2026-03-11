@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -48,6 +48,16 @@ function createInitialState() {
 export default function App() {
   const [state, setState, resetState] = useLocalStorage(createInitialState());
   const [activeId, setActiveId] = useState(null);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('trip-planner-dark');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches || false;
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('trip-planner-dark', darkMode);
+  }, [darkMode]);
   const [modalCard, setModalCard] = useState(null); // card object or null
   const [modalOpen, setModalOpen] = useState(false);
   const [isNewCard, setIsNewCard] = useState(false);
@@ -296,6 +306,8 @@ export default function App() {
           onTripNameChange={handleTripNameChange}
           onExport={handleExport}
           onReset={handleReset}
+          darkMode={darkMode}
+          onToggleDark={() => setDarkMode((v) => !v)}
         />
 
         <div className="days-container">

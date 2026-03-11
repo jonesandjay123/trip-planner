@@ -1,3 +1,111 @@
+/* ===== CSS Variables (Light Theme) ===== */
+:root {
+  --bg-body: #f5f3f0;
+  --text-primary: #333;
+  --text-secondary: #555;
+  --text-tertiary: #777;
+  --text-muted: #888;
+  --text-faint: #999;
+  --text-placeholder: #aaa;
+  --text-ghost: #bbb;
+
+  --card-bg: white;
+  --card-shadow: rgba(0, 0, 0, 0.1);
+  --card-shadow-hover: rgba(0, 0, 0, 0.15);
+  --card-border: #ff8a65;
+  --card-match-bg: #f9fff9;
+  --card-match-border: #4caf50;
+
+  --column-bg: white;
+  --column-header-bg: #fafafa;
+  --column-border: #eee;
+
+  --zone-morning: #fff8e1;
+  --zone-afternoon: #fff3e0;
+  --zone-evening: #ede7f6;
+  --zone-flexible: #e8f5e9;
+  --zone-empty-border: #ddd;
+
+  --pool-bg: #efe8df;
+  --pool-border: #e0d5c8;
+  --pool-hover: #e8ddd0;
+
+  --btn-bg: rgba(0, 0, 0, 0.06);
+  --btn-border: #bbb;
+  --swap-border: #ddd;
+  --swap-hover-bg: #ff8a65;
+
+  --input-bg: #fafafa;
+  --input-border: #ddd;
+  --input-focus: #ff8a65;
+  --input-focus-bg: white;
+
+  --modal-overlay: rgba(0, 0, 0, 0.5);
+  --modal-bg: white;
+  --modal-shadow: rgba(0, 0, 0, 0.25);
+  --modal-btn-cancel-bg: #f5f5f5;
+  --modal-btn-cancel-hover: #e0e0e0;
+
+  --comment-border: #e0e0e0;
+  --accent: #ff8a65;
+  --accent-hover: #ff7043;
+  --scrollbar: #ccc;
+}
+
+/* ===== Dark Theme ===== */
+[data-theme="dark"] {
+  --bg-body: #1a1a2e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #c0c0c0;
+  --text-tertiary: #a0a0a0;
+  --text-muted: #909090;
+  --text-faint: #808080;
+  --text-placeholder: #707070;
+  --text-ghost: #606060;
+
+  --card-bg: #2a2a42;
+  --card-shadow: rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: rgba(0, 0, 0, 0.45);
+  --card-border: #e07050;
+  --card-match-bg: #1e3a1e;
+  --card-match-border: #66bb6a;
+
+  --column-bg: #222240;
+  --column-header-bg: #2e2e4a;
+  --column-border: #3a3a55;
+
+  --zone-morning: #2a2820;
+  --zone-afternoon: #2a2518;
+  --zone-evening: #252035;
+  --zone-flexible: #1e2a1e;
+  --zone-empty-border: #444;
+
+  --pool-bg: #1e1e32;
+  --pool-border: #333355;
+  --pool-hover: #282848;
+
+  --btn-bg: rgba(255, 255, 255, 0.08);
+  --btn-border: #555;
+  --swap-border: #555;
+  --swap-hover-bg: #e07050;
+
+  --input-bg: #333350;
+  --input-border: #555;
+  --input-focus: #e07050;
+  --input-focus-bg: #2a2a42;
+
+  --modal-overlay: rgba(0, 0, 0, 0.7);
+  --modal-bg: #2a2a42;
+  --modal-shadow: rgba(0, 0, 0, 0.5);
+  --modal-btn-cancel-bg: #333350;
+  --modal-btn-cancel-hover: #444460;
+
+  --comment-border: #444;
+  --accent: #e07050;
+  --accent-hover: #d05535;
+  --scrollbar: #555;
+}
+
 /* ===== Reset & Base ===== */
 *,
 *::before,
@@ -9,9 +117,10 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif;
-  background: #f5f3f0;
-  color: #333;
+  background: var(--bg-body);
+  color: var(--text-primary);
   min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
 }
 
 #root {
@@ -27,13 +136,29 @@ body {
   min-height: 100vh;
 }
 
+/* ===== Theme Toggle ===== */
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 6px 10px;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 /* ===== Header ===== */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  background: linear-gradient(135deg, #ff8a65 0%, #ff7043 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   position: sticky;
@@ -141,7 +266,7 @@ body {
 }
 
 .days-container::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: var(--scrollbar);
   border-radius: 4px;
 }
 
@@ -150,9 +275,9 @@ body {
   min-width: 260px;
   max-width: 280px;
   flex-shrink: 0;
-  background: white;
+  background: var(--column-bg);
   border-radius: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 4px var(--card-shadow);
   overflow: hidden;
 }
 
@@ -161,9 +286,9 @@ body {
   font-size: 16px;
   font-weight: 700;
   text-align: center;
-  background: #fafafa;
-  border-bottom: 1px solid #eee;
-  color: #555;
+  background: var(--column-header-bg);
+  border-bottom: 1px solid var(--column-border);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -176,20 +301,20 @@ body {
 
 .swap-btn {
   background: none;
-  border: 1px solid #ddd;
+  border: 1px solid var(--swap-border);
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   padding: 4px 8px;
   transition: all 0.2s;
   line-height: 1;
 }
 
 .swap-btn:hover:not(:disabled) {
-  background: #ff8a65;
+  background: var(--swap-hover-bg);
   color: white;
-  border-color: #ff8a65;
+  border-color: var(--swap-hover-bg);
 }
 
 .swap-btn:disabled {
@@ -211,14 +336,14 @@ body {
 }
 
 .drop-zone-over {
-  outline: 2px dashed #ff7043;
+  outline: 2px dashed var(--accent-hover);
   outline-offset: -2px;
 }
 
 .zone-label {
   font-size: 12px;
   font-weight: 600;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 6px;
   padding-left: 4px;
 }
@@ -232,28 +357,28 @@ body {
 
 .zone-empty {
   font-size: 12px;
-  color: #bbb;
+  color: var(--text-ghost);
   text-align: center;
   padding: 10px;
-  border: 1px dashed #ddd;
+  border: 1px dashed var(--zone-empty-border);
   border-radius: 8px;
 }
 
 /* ===== Card ===== */
 .card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 10px;
   padding: 10px 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px var(--card-shadow);
   cursor: grab;
   transition: box-shadow 0.2s, transform 0.15s;
-  border-left: 3px solid #ff8a65;
+  border-left: 3px solid var(--card-border);
   user-select: none;
   touch-action: none;
 }
 
 .card:hover {
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 8px var(--card-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -268,8 +393,8 @@ body {
 }
 
 .card-zone-match {
-  border-left-color: #4caf50;
-  background: #f9fff9;
+  border-left-color: var(--card-match-border);
+  background: var(--card-match-bg);
 }
 
 .card-header-row {
@@ -292,13 +417,13 @@ body {
 .card-compact-title {
   font-size: 13px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary);
   flex: 1;
 }
 
 .card-compact-duration {
   font-size: 11px;
-  color: #999;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
@@ -307,7 +432,7 @@ body {
   border: none;
   cursor: pointer;
   font-size: 10px;
-  color: #aaa;
+  color: var(--text-placeholder);
   padding: 2px 4px;
   border-radius: 4px;
   transition: all 0.2s;
@@ -316,51 +441,51 @@ body {
 }
 
 .card-expand-btn:hover {
-  background: rgba(0,0,0,0.06);
-  color: #666;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
 }
 
 .card-title {
   font-size: 14px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .card-subtitle {
   font-size: 11px;
-  color: #999;
+  color: var(--text-faint);
   margin-bottom: 4px;
 }
 
 .card-meta {
   font-size: 11px;
-  color: #777;
+  color: var(--text-tertiary);
   margin-bottom: 2px;
 }
 
 .card-area {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 3px;
 }
 
 .card-note {
   font-size: 11px;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 3px;
   line-height: 1.3;
 }
 
 .card-tags {
   font-size: 10px;
-  color: #aaa;
+  color: var(--text-placeholder);
 }
 
 /* ===== Candidate Pool ===== */
 .candidate-pool {
-  background: #efe8df;
-  border-top: 2px solid #e0d5c8;
+  background: var(--pool-bg);
+  border-top: 2px solid var(--pool-border);
   padding: 16px 20px;
   position: sticky;
   bottom: 0;
@@ -368,7 +493,7 @@ body {
 }
 
 .candidate-pool-over {
-  background: #e8ddd0;
+  background: var(--pool-hover);
 }
 
 .pool-header {
@@ -385,13 +510,13 @@ body {
 .pool-title {
   font-size: 16px;
   font-weight: 700;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .pool-count {
   font-size: 12px;
-  color: #999;
-  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-faint);
+  background: var(--btn-bg);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -410,7 +535,7 @@ body {
 }
 
 .pool-cards::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: var(--scrollbar);
   border-radius: 3px;
 }
 
@@ -422,7 +547,7 @@ body {
 
 .pool-empty {
   font-size: 13px;
-  color: #aaa;
+  color: var(--text-placeholder);
   padding: 16px;
   text-align: center;
   width: 100%;
@@ -448,26 +573,26 @@ body {
 }
 
 .card-edit-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--btn-bg);
 }
 
 /* ===== Card Comments ===== */
 .card-comments {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px dashed #e0e0e0;
+  border-top: 1px dashed var(--comment-border);
 }
 
 .card-comment {
   font-size: 11px;
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1.4;
   margin-bottom: 3px;
 }
 
 .card-compact-comments {
   font-size: 11px;
-  color: #999;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 
@@ -481,19 +606,20 @@ body {
   flex: 1;
   font-size: 11px;
   padding: 4px 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   outline: none;
-  background: #fafafa;
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .card-comment-input input:focus {
-  border-color: #ff8a65;
-  background: white;
+  border-color: var(--input-focus);
+  background: var(--input-focus-bg);
 }
 
 .card-comment-input button {
-  background: #ff8a65;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 6px;
@@ -504,38 +630,38 @@ body {
 }
 
 .card-comment-input button:disabled {
-  background: #ddd;
+  background: var(--input-border);
   cursor: default;
 }
 
 .card-comment-input button:hover:not(:disabled) {
-  background: #ff7043;
+  background: var(--accent-hover);
 }
 
 /* ===== Add Card Button ===== */
 .btn-add-card {
   margin-left: auto;
-  background: rgba(0, 0, 0, 0.06);
-  color: #555;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
   padding: 6px 14px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  border: 1px dashed #bbb;
+  border: 1px dashed var(--btn-border);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-add-card:hover {
   background: rgba(0, 0, 0, 0.1);
-  border-color: #888;
+  border-color: var(--text-muted);
 }
 
 /* ===== Modal ===== */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -544,9 +670,9 @@ body {
 }
 
 .modal-card {
-  background: white;
+  background: var(--modal-bg);
   border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 12px 40px var(--modal-shadow);
   width: 100%;
   max-width: 480px;
   max-height: 90vh;
@@ -572,7 +698,7 @@ body {
 .modal-header h2 {
   font-size: 20px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -592,7 +718,7 @@ body {
 .modal-label {
   font-size: 13px;
   font-weight: 600;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .modal-field input,
@@ -600,10 +726,11 @@ body {
 .modal-field textarea {
   font-size: 14px;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   outline: none;
-  background: #fafafa;
+  background: var(--input-bg);
+  color: var(--text-primary);
   font-family: inherit;
   transition: border-color 0.2s;
 }
@@ -611,8 +738,8 @@ body {
 .modal-field input:focus,
 .modal-field select:focus,
 .modal-field textarea:focus {
-  border-color: #ff8a65;
-  background: white;
+  border-color: var(--input-focus);
+  background: var(--input-focus-bg);
 }
 
 .modal-field textarea {
@@ -628,7 +755,7 @@ body {
 }
 
 .modal-btn-save {
-  background: #ff8a65;
+  background: var(--accent);
   color: white;
   padding: 10px 20px;
   font-size: 14px;
@@ -637,12 +764,12 @@ body {
 }
 
 .modal-btn-save:hover {
-  background: #ff7043;
+  background: var(--accent-hover);
 }
 
 .modal-btn-cancel {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--modal-btn-cancel-bg);
+  color: var(--text-secondary);
   padding: 10px 20px;
   font-size: 14px;
   font-weight: 600;
@@ -650,7 +777,7 @@ body {
 }
 
 .modal-btn-cancel:hover {
-  background: #e0e0e0;
+  background: var(--modal-btn-cancel-hover);
 }
 
 /* ===== Responsive ===== */

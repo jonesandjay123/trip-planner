@@ -4,10 +4,10 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import Card from './Card';
 
 const ZONE_CONFIG = {
-  morning: { label: '☀️ 早上', color: '#fff8e1' },
-  afternoon: { label: '🌤️ 下午', color: '#fff3e0' },
-  evening: { label: '🌙 晚上', color: '#ede7f6' },
-  flexible: { label: '🔄 彈性', color: '#e8f5e9' },
+  morning: { label: '☀️ 早上', colorVar: 'var(--zone-morning)' },
+  afternoon: { label: '🌤️ 下午', colorVar: 'var(--zone-afternoon)' },
+  evening: { label: '🌙 晚上', colorVar: 'var(--zone-evening)' },
+  flexible: { label: '🔄 彈性', colorVar: 'var(--zone-flexible)' },
 };
 
 export default function DropZone({ zone, cardIds, cardMap, date, onEditCard, onAddComment }) {
@@ -19,7 +19,7 @@ export default function DropZone({ zone, cardIds, cardMap, date, onEditCard, onA
   return (
     <div
       className={`drop-zone ${isOver ? 'drop-zone-over' : ''}`}
-      style={{ backgroundColor: config.color }}
+      style={{ backgroundColor: config.colorVar }}
     >
       <div className="zone-label">{config.label}</div>
       <SortableContext

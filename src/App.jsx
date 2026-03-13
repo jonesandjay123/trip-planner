@@ -11,6 +11,8 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import seedCards from './data/cards.json';
+import { doc, setDoc } from "firebase/firestore"
+import { db } from "./firebase"
 import { useLocalStorage } from './hooks/useLocalStorage';
 import Header from './components/Header';
 import DayColumn from './components/DayColumn';
@@ -20,6 +22,16 @@ import CardModal from './components/CardModal';
 import PlanSelector from './components/PlanSelector';
 
 const STATE_VERSION = 6; // v6: unscheduled computed, not stored
+
+useEffect(() => {
+  const test = async () => {
+    await setDoc(doc(db, "test", "ping"), {
+      hello: "world",
+      time: Date.now()
+    })
+  }
+  test()
+}, [])
 
 function generateDays(startDate, endDate) {
   const days = {};

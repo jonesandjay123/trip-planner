@@ -10,7 +10,7 @@ function formatDate(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function Header({ tripName, startDate, endDate, onTripNameChange, onExport, onReset, darkMode, onToggleDark }) {
+export default function Header({ tripName, startDate, endDate, onTripNameChange, onExport, onReset, darkMode, onToggleDark, planSelector }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tripName);
 
@@ -56,6 +56,7 @@ export default function Header({ tripName, startDate, endDate, onTripNameChange,
         <span className="date-range">
           {formatDate(startDate)} → {formatDate(endDate)}
         </span>
+        {planSelector}
       </div>
       <div className="header-actions">
         <button className="theme-toggle" onClick={onToggleDark} title={darkMode ? '切換淺色模式' : '切換深色模式'}>

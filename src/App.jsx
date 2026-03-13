@@ -402,15 +402,16 @@ export default function App() {
           onReset={handleReset}
           darkMode={darkMode}
           onToggleDark={() => setDarkMode((v) => !v)}
-        />
-
-        <PlanSelector
-          plans={state.plans || []}
-          activePlanId={state.activePlanId}
-          onSwitch={handleSwitchPlan}
-          onClone={handleClonePlan}
-          onRename={handleRenamePlan}
-          onDelete={handleDeletePlan}
+          planSelector={
+            <PlanSelector
+              plans={state.plans || []}
+              activePlanId={state.activePlanId}
+              onSwitch={handleSwitchPlan}
+              onClone={handleClonePlan}
+              onRename={handleRenamePlan}
+              onDelete={handleDeletePlan}
+            />
+          }
         />
 
         <div className="days-container">

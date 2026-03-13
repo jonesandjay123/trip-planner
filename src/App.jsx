@@ -11,9 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import seedCards from './data/cards.json';
-import { doc, setDoc } from "firebase/firestore"
-import { db } from "./firebase"
-import { useLocalStorage } from './hooks/useLocalStorage';
+import { useFirestore } from './hooks/useFirestore';
 import Header from './components/Header';
 import DayColumn from './components/DayColumn';
 import CandidatePool from './components/CandidatePool';
@@ -85,7 +83,7 @@ function getPlanDayOrder(plan) {
 // ==================== App ====================
 
 export default function App() {
-  const [state, setState, resetState] = useLocalStorage(createInitialState());
+  const [state, setState, resetState, loading] = useFirestore(createInitialState());
   const [activeId, setActiveId] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('trip-planner-dark');
@@ -97,18 +95,6 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
     localStorage.setItem('trip-planner-dark', darkMode);
   }, [darkMode]);
-
-  // Firebase connectivity test — remove after confirming
-  useEffect(() => {
-    const test = async () => {
-      await setDoc(doc(db, "test", "ping"), {
-        hello: "world",
-        time: Date.now()
-      });
-      console.log("✅ Firebase write succeeded!");
-    };
-    test().catch((err) => console.error("❌ Firebase write failed:", err));
-  }, []);
 
   const [modalCard, setModalCard] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -441,6 +427,14 @@ export default function App() {
     () => (state.planOrder || []).map((id) => state.plans[id]).filter(Boolean),
     [state.plans, state.planOrder]
   );
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '18px' }}>
+        ⏳ 載入中...
+      </div>
+    );
+  }
 
   return (
     <DndContext

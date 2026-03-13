@@ -116,12 +116,37 @@ export default function App() {
   }
 
   function handleDeletePlan(planId) {
-    if (planId === 'default') return;
     setState((prev) => {
+      if (prev.plans.length <= 1) return prev; // 至少保留一個
       const filtered = prev.plans.filter((p) => p.id !== planId);
-      // If we deleted the active plan, switch to first
       const newActive = prev.activePlanId === planId ? filtered[0].id : prev.activePlanId;
       return { ...prev, plans: filtered, activePlanId: newActive };
+    });
+  }
+
+  function handleResetPlan() {
+    if (!window.confirm('確定要清空當前方案的所有排程嗎？卡片會回到候選區。')) return;
+    setState((prev) => {
+      const plan = prev.plans.find((p) => p.id === prev.activePlanId);
+      if (!plan) return prev;
+      // Collect all card IDs currently assigned in this plan's days
+      const assignedIds = [];
+      Object.values(plan.days).forEach((zones) => {
+        Object.values(zones).forEach((cards) => {
+          assignedIds.push(...cards);
+        });
+      });
+      // Reset days to empty and put cards back to unscheduled
+      const emptyDays = generateDays(prev.startDate, prev.endDate);
+      return {
+        ...prev,
+        unscheduled: [...prev.unscheduled, ...assignedIds],
+        plans: prev.plans.map((p) =>
+          p.id === prev.activePlanId
+            ? { ...p, days: emptyDays, dayOrder: Object.keys(emptyDays).sort() }
+            : p
+        ),
+      };
     });
   }
 
@@ -410,6 +435,7 @@ export default function App() {
               onClone={handleClonePlan}
               onRename={handleRenamePlan}
               onDelete={handleDeletePlan}
+              onResetPlan={handleResetPlan}
             />
           }
         />

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, onRename, onDelete }) {
+export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, onRename, onDelete, onResetPlan }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
@@ -108,7 +108,7 @@ export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, o
                   >
                     ✏️
                   </button>
-                  {plan.id !== 'default' && (
+                  {plans.length > 1 && (
                     <button
                       className="plan-item-btn plan-item-delete"
                       title="刪除"
@@ -126,6 +126,9 @@ export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, o
 
       <button className="btn btn-clone" onClick={onClone} title="複製當前方案">
         📑 Clone
+      </button>
+      <button className="btn btn-clone" onClick={onResetPlan} title="清空當前方案排程">
+        🧹 清空
       </button>
 
       {plans.length > 1 && (

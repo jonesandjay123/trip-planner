@@ -23,16 +23,6 @@ import PlanSelector from './components/PlanSelector';
 
 const STATE_VERSION = 6; // v6: unscheduled computed, not stored
 
-useEffect(() => {
-  const test = async () => {
-    await setDoc(doc(db, "test", "ping"), {
-      hello: "world",
-      time: Date.now()
-    })
-  }
-  test()
-}, [])
-
 function generateDays(startDate, endDate) {
   const days = {};
   const start = new Date(startDate + 'T00:00:00');
@@ -107,6 +97,18 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
     localStorage.setItem('trip-planner-dark', darkMode);
   }, [darkMode]);
+
+  // Firebase connectivity test — remove after confirming
+  useEffect(() => {
+    const test = async () => {
+      await setDoc(doc(db, "test", "ping"), {
+        hello: "world",
+        time: Date.now()
+      });
+      console.log("✅ Firebase write succeeded!");
+    };
+    test().catch((err) => console.error("❌ Firebase write failed:", err));
+  }, []);
 
   const [modalCard, setModalCard] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);

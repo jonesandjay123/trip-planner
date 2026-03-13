@@ -18,8 +18,10 @@ import CandidatePool from './components/CandidatePool';
 import Card from './components/Card';
 import CardModal from './components/CardModal';
 
+import PlanSelector from './components/PlanSelector';
+
 const ZONES = ['morning', 'afternoon', 'evening', 'flexible'];
-const STATE_VERSION = 3; // bump to force localStorage reset
+const STATE_VERSION = 4; // bump to force localStorage reset (added plans)
 
 function generateDays(startDate, endDate) {
   const days = {};
@@ -33,15 +35,24 @@ function generateDays(startDate, endDate) {
 }
 
 function createInitialState() {
+  const defaultDays = generateDays('2026-05-01', '2026-05-07');
+  const defaultDayOrder = ['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06', '2026-05-07'];
   return {
     _version: STATE_VERSION,
     tripName: 'Tokyo May 2026',
     startDate: '2026-05-01',
     endDate: '2026-05-07',
-    dayOrder: ['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06', '2026-05-07'],
-    days: generateDays('2026-05-01', '2026-05-07'),
-    unscheduled: seedCards.map((c) => c.id),
     cards: Object.fromEntries(seedCards.map((c) => [c.id, { ...c, comments: [] }])),
+    unscheduled: seedCards.map((c) => c.id),
+    plans: [
+      {
+        id: 'default',
+        name: 'Default',
+        dayOrder: defaultDayOrder,
+        days: defaultDays,
+      },
+    ],
+    activePlanId: 'default',
   };
 }
 
@@ -58,11 +69,69 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
     localStorage.setItem('trip-planner-dark', darkMode);
   }, [darkMode]);
-  const [modalCard, setModalCard] = useState(null); // card object or null
+  const [modalCard, setModalCard] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isNewCard, setIsNewCard] = useState(false);
 
   const cardMap = state.cards || {};
+
+  // --- Plan helpers ---
+  const activePlan = useMemo(() => {
+    const plans = state.plans || [];
+    return plans.find((p) => p.id === state.activePlanId) || plans[0];
+  }, [state.plans, state.activePlanId]);
+
+  // Get days and dayOrder from active plan
+  const activeDays = activePlan?.days || {};
+  const activeDayOrder = activePlan?.dayOrder || Object.keys(activeDays).sort();
+
+  function handleSwitchPlan(planId) {
+    setState((prev) => ({ ...prev, activePlanId: planId }));
+  }
+
+  function handleClonePlan() {
+    setState((prev) => {
+      const source = prev.plans.find((p) => p.id === prev.activePlanId) || prev.plans[0];
+      const newId = `plan_${Date.now()}`;
+      const cloned = {
+        id: newId,
+        name: `${source.name} (副本)`,
+        dayOrder: [...source.dayOrder],
+        days: JSON.parse(JSON.stringify(source.days)),
+      };
+      return {
+        ...prev,
+        plans: [...prev.plans, cloned],
+        activePlanId: newId,
+      };
+    });
+  }
+
+  function handleRenamePlan(planId, newName) {
+    if (!newName.trim()) return;
+    setState((prev) => ({
+      ...prev,
+      plans: prev.plans.map((p) => (p.id === planId ? { ...p, name: newName.trim() } : p)),
+    }));
+  }
+
+  function handleDeletePlan(planId) {
+    if (planId === 'default') return;
+    setState((prev) => {
+      const filtered = prev.plans.filter((p) => p.id !== planId);
+      // If we deleted the active plan, switch to first
+      const newActive = prev.activePlanId === planId ? filtered[0].id : prev.activePlanId;
+      return { ...prev, plans: filtered, activePlanId: newActive };
+    });
+  }
+
+  // Helper: update active plan's data
+  function updateActivePlan(updater) {
+    setState((prev) => ({
+      ...prev,
+      plans: prev.plans.map((p) => (p.id === prev.activePlanId ? updater(p) : p)),
+    }));
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -76,7 +145,7 @@ export default function App() {
     state.unscheduled.forEach((id, idx) => {
       loc[id] = { containerId: 'unscheduled', index: idx };
     });
-    Object.entries(state.days).forEach(([date, zones]) => {
+    Object.entries(activeDays).forEach(([date, zones]) => {
       Object.entries(zones).forEach(([zone, cards]) => {
         cards.forEach((id, idx) => {
           loc[id] = { containerId: `${date}::${zone}`, index: idx };
@@ -84,7 +153,7 @@ export default function App() {
       });
     });
     return loc;
-  }, [state]);
+  }, [state.unscheduled, activeDays]);
 
   const findContainer = useCallback(
     (id) => {
@@ -100,33 +169,32 @@ export default function App() {
       if (containerId === 'unscheduled') return state.unscheduled;
       if (containerId && containerId.includes('::')) {
         const [date, zone] = containerId.split('::');
-        return state.days[date]?.[zone] || [];
+        return activeDays[date]?.[zone] || [];
       }
       return [];
     },
-    [state]
+    [state.unscheduled, activeDays]
   );
 
   const setContainerItems = useCallback(
     (containerId, items) => {
-      setState((prev) => {
-        if (containerId === 'unscheduled') {
-          return { ...prev, unscheduled: items };
-        }
+      if (containerId === 'unscheduled') {
+        setState((prev) => ({ ...prev, unscheduled: items }));
+      } else {
         const [date, zone] = containerId.split('::');
-        return {
-          ...prev,
+        updateActivePlan((plan) => ({
+          ...plan,
           days: {
-            ...prev.days,
+            ...plan.days,
             [date]: {
-              ...prev.days[date],
+              ...plan.days[date],
               [zone]: items,
             },
           },
-        };
-      });
+        }));
+      }
     },
-    [setState]
+    [setState, updateActivePlan]
   );
 
   // --- Modal handlers ---
@@ -202,8 +270,11 @@ export default function App() {
     if (!activeContainer || !overContainer || activeContainer === overContainer) return;
 
     setState((prev) => {
-      const activeItems = [...getContainerItemsFromState(prev, activeContainer)];
-      const overItems = [...getContainerItemsFromState(prev, overContainer)];
+      const activePlanIdx = prev.plans.findIndex((p) => p.id === prev.activePlanId);
+      const plan = prev.plans[activePlanIdx];
+
+      const activeItems = [...getContainerItemsFromPlan(prev, plan, activeContainer)];
+      const overItems = [...getContainerItemsFromPlan(prev, plan, overContainer)];
 
       const activeIndex = activeItems.indexOf(active.id);
       const overIndex = overItems.indexOf(over.id);
@@ -218,11 +289,11 @@ export default function App() {
       activeItems.splice(activeIndex, 1);
       overItems.splice(newIndex, 0, active.id);
 
-      return setContainerItemsInState(
-        setContainerItemsInState(prev, activeContainer, activeItems),
-        overContainer,
-        overItems
-      );
+      let next = setContainerItemsInPlanState(prev, plan, activeContainer, activeItems);
+      // Re-read updated plan for second set
+      const updatedPlan = next.plans.find((p) => p.id === prev.activePlanId);
+      next = setContainerItemsInPlanState(next, updatedPlan, overContainer, overItems);
+      return next;
     });
   }
 
@@ -239,12 +310,27 @@ export default function App() {
     if (!activeContainer || !overContainer) return;
 
     if (activeContainer === overContainer) {
-      const items = getContainerItems(activeContainer);
+      const items = [...getContainerItems(activeContainer)];
       const oldIndex = items.indexOf(active.id);
       const newIndex = items.indexOf(over.id);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        setContainerItems(activeContainer, arrayMove(items, oldIndex, newIndex));
+        const reordered = arrayMove(items, oldIndex, newIndex);
+        if (activeContainer === 'unscheduled') {
+          setState((prev) => ({ ...prev, unscheduled: reordered }));
+        } else {
+          const [date, zone] = activeContainer.split('::');
+          updateActivePlan((plan) => ({
+            ...plan,
+            days: {
+              ...plan.days,
+              [date]: {
+                ...plan.days[date],
+                [zone]: reordered,
+              },
+            },
+          }));
+        }
       }
     }
   }
@@ -254,10 +340,19 @@ export default function App() {
   }
 
   function handleExport() {
-    const json = JSON.stringify(state, null, 2);
+    // Export only active plan + cards for readability
+    const exportData = {
+      tripName: state.tripName,
+      plan: activePlan?.name || 'Default',
+      dayOrder: activeDayOrder,
+      days: activeDays,
+      cards: cardMap,
+      unscheduled: state.unscheduled,
+    };
+    const json = JSON.stringify(exportData, null, 2);
     try {
       navigator.clipboard.writeText(json);
-      alert('已複製到剪貼簿！');
+      alert(`已複製「${activePlan?.name}」方案到剪貼簿！`);
     } catch {
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -276,19 +371,18 @@ export default function App() {
   }
 
   function handleSwapDay(date, direction) {
-    setState((prev) => {
-      const order = prev.dayOrder || Object.keys(prev.days).sort();
+    updateActivePlan((plan) => {
+      const order = plan.dayOrder || Object.keys(plan.days).sort();
       const idx = order.indexOf(date);
       const targetIdx = idx + direction;
-      if (targetIdx < 0 || targetIdx >= order.length) return prev;
+      if (targetIdx < 0 || targetIdx >= order.length) return plan;
       const newOrder = [...order];
       [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
-      return { ...prev, dayOrder: newOrder };
+      return { ...plan, dayOrder: newOrder };
     });
   }
 
   const activeCard = activeId ? cardMap[activeId] : null;
-  const dayOrder = state.dayOrder || Object.keys(state.days).sort();
 
   return (
     <DndContext
@@ -310,16 +404,25 @@ export default function App() {
           onToggleDark={() => setDarkMode((v) => !v)}
         />
 
+        <PlanSelector
+          plans={state.plans || []}
+          activePlanId={state.activePlanId}
+          onSwitch={handleSwitchPlan}
+          onClone={handleClonePlan}
+          onRename={handleRenamePlan}
+          onDelete={handleDeletePlan}
+        />
+
         <div className="days-container">
-          {dayOrder.map((date, idx) => (
+          {activeDayOrder.map((date, idx) => (
             <DayColumn
               key={date}
               date={date}
-              zones={state.days[date]}
+              zones={activeDays[date]}
               cardMap={cardMap}
               onSwap={handleSwapDay}
               isFirst={idx === 0}
-              isLast={idx === dayOrder.length - 1}
+              isLast={idx === activeDayOrder.length - 1}
               onEditCard={openEditModal}
               onAddComment={handleAddComment}
             />
@@ -350,26 +453,30 @@ export default function App() {
   );
 }
 
-// Pure helper functions for immutable state updates
-function getContainerItemsFromState(state, containerId) {
+// Pure helper functions for immutable state updates (plan-aware)
+function getContainerItemsFromPlan(state, plan, containerId) {
   if (containerId === 'unscheduled') return state.unscheduled;
   const [date, zone] = containerId.split('::');
-  return state.days[date]?.[zone] || [];
+  return plan.days[date]?.[zone] || [];
 }
 
-function setContainerItemsInState(state, containerId, items) {
+function setContainerItemsInPlanState(state, plan, containerId, items) {
   if (containerId === 'unscheduled') {
     return { ...state, unscheduled: items };
   }
   const [date, zone] = containerId.split('::');
-  return {
-    ...state,
+  const updatedPlan = {
+    ...plan,
     days: {
-      ...state.days,
+      ...plan.days,
       [date]: {
-        ...state.days[date],
+        ...plan.days[date],
         [zone]: items,
       },
     },
+  };
+  return {
+    ...state,
+    plans: state.plans.map((p) => (p.id === plan.id ? updatedPlan : p)),
   };
 }

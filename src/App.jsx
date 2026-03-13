@@ -19,7 +19,7 @@ import Card from './components/Card';
 import CardModal from './components/CardModal';
 import PlanSelector from './components/PlanSelector';
 
-const STATE_VERSION = 5; // v5: Firestore-ready state shape
+const STATE_VERSION = 6; // v6: unscheduled computed, not stored
 
 function generateDays(startDate, endDate) {
   const days = {};
@@ -49,9 +49,6 @@ function createInitialState() {
 
     // --- Cards (→ Firestore: trips/{tripId}/cards/{cardId}) ---
     cards: Object.fromEntries(seedCards.map((c) => [c.id, { ...c, comments: [] }])),
-
-    // --- Unscheduled card IDs (→ Firestore: trips/{tripId}.unscheduledCardIds) ---
-    unscheduledCardIds: seedCards.map((c) => c.id),
 
     // --- Plans keyed by ID (→ Firestore: trips/{tripId}/plans/{planId}) ---
     plans: {
@@ -107,6 +104,17 @@ export default function App() {
   const activePlan = useMemo(() => getActivePlan(state), [state]);
   const activeDays = useMemo(() => getPlanDays(activePlan), [activePlan]);
   const activeDayOrder = useMemo(() => getPlanDayOrder(activePlan), [activePlan]);
+
+  // Unscheduled = all cards − cards assigned in active plan (computed, not stored)
+  const unscheduledCardIds = useMemo(() => {
+    const assigned = new Set();
+    Object.values(activeDays).forEach((zones) => {
+      Object.values(zones).forEach((cards) => {
+        cards.forEach((id) => assigned.add(id));
+      });
+    });
+    return Object.keys(cardMap).filter((id) => !assigned.has(id));
+  }, [cardMap, activeDays]);
 
   // ==================== Plan operations ====================
 
@@ -167,16 +175,10 @@ export default function App() {
     setState((prev) => {
       const plan = getActivePlan(prev);
       if (!plan) return prev;
-      const assignedIds = [];
-      Object.values(plan.days).forEach((zones) => {
-        Object.values(zones).forEach((cards) => {
-          assignedIds.push(...cards);
-        });
-      });
       const emptyDays = generateDays(prev.tripMeta.startDate, prev.tripMeta.endDate);
+      // No need to update unscheduledCardIds — it's computed from cards − assignments
       return {
         ...prev,
-        unscheduledCardIds: [...prev.unscheduledCardIds, ...assignedIds],
         plans: {
           ...prev.plans,
           [plan.id]: {
@@ -211,7 +213,7 @@ export default function App() {
 
   const cardLocations = useMemo(() => {
     const loc = {};
-    (state.unscheduledCardIds || []).forEach((id, idx) => {
+    unscheduledCardIds.forEach((id, idx) => {
       loc[id] = { containerId: 'unscheduled', index: idx };
     });
     Object.entries(activeDays).forEach(([date, zones]) => {
@@ -222,7 +224,7 @@ export default function App() {
       });
     });
     return loc;
-  }, [state.unscheduledCardIds, activeDays]);
+  }, [unscheduledCardIds, activeDays]);
 
   const findContainer = useCallback(
     (id) => {
@@ -235,14 +237,14 @@ export default function App() {
 
   const getContainerItems = useCallback(
     (containerId) => {
-      if (containerId === 'unscheduled') return state.unscheduledCardIds || [];
+      if (containerId === 'unscheduled') return unscheduledCardIds;
       if (containerId && containerId.includes('::')) {
         const [date, zone] = containerId.split('::');
         return activeDays[date]?.[zone] || [];
       }
       return [];
     },
-    [state.unscheduledCardIds, activeDays]
+    [unscheduledCardIds, activeDays]
   );
 
   function handleDragStart(event) {
@@ -299,19 +301,19 @@ export default function App() {
       const newIndex = items.indexOf(over.id);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        const reordered = arrayMove(items, oldIndex, newIndex);
         if (activeContainer === 'unscheduled') {
-          setState((prev) => ({ ...prev, unscheduledCardIds: reordered }));
-        } else {
-          const [date, zone] = activeContainer.split('::');
-          updateActivePlan((plan) => ({
-            ...plan,
-            days: {
-              ...plan.days,
-              [date]: { ...plan.days[date], [zone]: reordered },
-            },
-          }));
+          // Unscheduled is computed — reorder within pool is a no-op
+          return;
         }
+        const reordered = arrayMove(items, oldIndex, newIndex);
+        const [date, zone] = activeContainer.split('::');
+        updateActivePlan((plan) => ({
+          ...plan,
+          days: {
+            ...plan.days,
+            [date]: { ...plan.days[date], [zone]: reordered },
+          },
+        }));
       }
     }
   }
@@ -337,17 +339,12 @@ export default function App() {
   }
 
   function handleModalSave(updatedCard, isNew) {
-    setState((prev) => {
-      const newCards = { ...prev.cards, [updatedCard.id]: updatedCard };
-      if (isNew) {
-        return {
-          ...prev,
-          cards: newCards,
-          unscheduledCardIds: [...prev.unscheduledCardIds, updatedCard.id],
-        };
-      }
-      return { ...prev, cards: newCards };
-    });
+    // Just add/update the card — if it's new, it'll auto-appear in unscheduled
+    // because unscheduled = all cards − assigned cards (computed)
+    setState((prev) => ({
+      ...prev,
+      cards: { ...prev.cards, [updatedCard.id]: updatedCard },
+    }));
     closeModal();
   }
 
@@ -386,7 +383,7 @@ export default function App() {
       dayOrder: activeDayOrder,
       days: activeDays,
       cards: cardMap,
-      unscheduledCardIds: state.unscheduledCardIds,
+      unscheduledCardIds,
     };
     const json = JSON.stringify(exportData, null, 2);
     try {
@@ -479,7 +476,7 @@ export default function App() {
         </div>
 
         <CandidatePool
-          cardIds={state.unscheduledCardIds}
+          cardIds={unscheduledCardIds}
           cardMap={cardMap}
           onAddNew={openNewCardModal}
           onEdit={openEditModal}
@@ -505,14 +502,26 @@ export default function App() {
 // ==================== Pure helpers ====================
 
 function getItemsFromPlan(state, plan, containerId) {
-  if (containerId === 'unscheduled') return state.unscheduledCardIds || [];
+  if (containerId === 'unscheduled') {
+    // Compute unscheduled on the fly for drag operations
+    const assigned = new Set();
+    Object.values(plan.days).forEach((zones) => {
+      Object.values(zones).forEach((cards) => {
+        cards.forEach((id) => assigned.add(id));
+      });
+    });
+    return Object.keys(state.cards || {}).filter((id) => !assigned.has(id));
+  }
   const [date, zone] = containerId.split('::');
   return plan.days[date]?.[zone] || [];
 }
 
 function setItemsInPlan(state, plan, containerId, items) {
   if (containerId === 'unscheduled') {
-    return { ...state, unscheduledCardIds: items };
+    // Unscheduled is computed — dragging FROM pool means removing from unscheduled,
+    // which happens automatically when the card is added to a plan zone.
+    // No state change needed for the unscheduled side.
+    return state;
   }
   const [date, zone] = containerId.split('::');
   const updatedPlan = {

@@ -144,10 +144,11 @@ firebase deploy --only hosting
 - [x] localStorage 保留為快取層（秒開 + 離線）
 - [x] 雙部署支援（Firebase Hosting + GitHub Pages）
 
-### 🔜 Phase 2.5 — 安全 + 手機體驗優化
+### 🔜 Phase 2.5 — 體驗優化 + 安全
+- [ ] ⭐ **候選池排序** — 加 `cardOrder` 欄位，候選區卡片可拖動排序（重要的往左放）
+- [ ] 手機版 UI 優化（卡片操作、拖放手感、候選池瀏覽）
 - [ ] Firestore rules 收緊（目前 allow all）
 - [ ] 簡單密碼保護 or Firebase Auth
-- [ ] 手機版 UI 優化（卡片操作、拖放手感、候選池瀏覽）
 - [ ] 分享連結（`/trip/{tripId}` 支援多趟旅行）
 
 ### 🔮 Phase 3 — AI 整合

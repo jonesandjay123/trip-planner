@@ -47,39 +47,58 @@ src/
     └── cards.json          # 初始種子卡片（12 個東京景點）
 ```
 
-## 🏗 資料結構
+## 🏗 資料結構（v5 — Firestore-ready）
 
 ```js
 state = {
-  _version: 4,                    // 版本號（自動重置 localStorage）
-  tripName: "Tokyo May 2026",
-  startDate: "2026-05-01",
-  endDate: "2026-05-07",
-  cards: {                        // 共用卡片庫
-    "asakusa": { id, title, subtitle, zone, duration, ... },
-    ...
+  _version: 5,
+
+  // Trip 主文件 → Firestore: trips/{tripId}
+  tripMeta: {
+    id: "tokyo-may-2026",
+    title: "Tokyo May 2026",
+    startDate: "2026-05-01",
+    endDate: "2026-05-07",
+    activePlanId: "default",
   },
-  unscheduled: ["asakusa", ...],  // 候選池（共用）
-  plans: [                        // 多套方案
-    {
+
+  // 共用卡片庫 → Firestore: trips/{tripId}/cards/{cardId}
+  cards: {
+    "asakusa": { id, title, subtitle, zone, duration, comments: [], ... },
+  },
+
+  // 候選池 → Firestore: trips/{tripId}.unscheduledCardIds
+  unscheduledCardIds: ["asakusa", ...],
+
+  // 方案（object keyed by ID）→ Firestore: trips/{tripId}/plans/{planId}
+  plans: {
+    "default": {
       id: "default",
       name: "Default",
       dayOrder: ["2026-05-01", ...],
-      days: {
-        "2026-05-01": { morning: [], afternoon: [], evening: [], flexible: [] },
-        ...
-      }
+      days: { "2026-05-01": { morning: [], afternoon: [], evening: [], flexible: [] } }
     }
-  ],
-  activePlanId: "default"
+  },
+
+  // 方案顯示順序 → Firestore: trips/{tripId}.planOrder
+  planOrder: ["default"],
 }
 ```
 
 **設計原則：**
-- Cards 共用 — 編輯卡片內容，所有方案都看到更新
-- Plans 只管排列 — 哪張卡排在哪天哪個時段
-- Comments 跟卡片走 — 不跟方案走
-- 候選池共用 — 是「所有想法」，方案只是「怎麼排」
+- **Cards 共用** — 編輯卡片內容，所有方案都看到更新
+- **Plans 只管排列** — 哪張卡排在哪天哪個時段
+- **Comments 跟卡片走** — 不跟方案走
+- **候選池共用** — 是「所有想法」，方案只是「怎麼排」
+- **Plans 用 object 不用 array** — 方便 Firestore 單筆讀寫，不需遍歷整個 array
+- **planOrder 獨立** — 控制顯示順序，跟 plan 資料分離
+
+**Firestore 映射：**
+```
+trips/{tripId}                    ← tripMeta + unscheduledCardIds + planOrder
+trips/{tripId}/cards/{cardId}     ← 每張卡片
+trips/{tripId}/plans/{planId}     ← 每個方案
+```
 
 ## 🚀 Getting Started
 

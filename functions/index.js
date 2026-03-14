@@ -7,7 +7,6 @@ setGlobalOptions({maxInstances: 10});
 exports.generateTripCards = onCall(
     {
       secrets: ["GEMINI_API_KEY"],
-      enforceAppCheck: true,
     },
     async (request) => {
       const {prompt} = request.data;

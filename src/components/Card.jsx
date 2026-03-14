@@ -179,6 +179,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
       {onAddComment && (
         <div className="card-comment-input" onClick={(e) => e.stopPropagation()}>
           <input
+            key={comments.length}
             type="text"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}

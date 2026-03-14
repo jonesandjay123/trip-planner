@@ -22,9 +22,10 @@
 - ◀▶ **日期換序** — 調整天數順序
 
 ### 雲端同步
-- ☁️ **Firestore 即時同步** — 資料存在雲端，重新整理不會消失
+- ☁️ **Firestore 即時同步** — `onSnapshot` 即時監聽，多人同時編輯即時看到變更
 - 🔄 **localStorage 快取** — 本地快取讓頁面秒開，背景從 Firestore 同步
 - 🌐 **跨裝置存取** — 任何瀏覽器打開同一個網址都看到同一份資料
+- 🤖 **Jarvis 遠端寫入** — AI 助手透過 Firestore REST API 直接推送卡片和調整排程
 
 ### UI/UX
 - 🌙 **深色模式** — 自動偵測系統偏好 + 手動切換
@@ -143,17 +144,24 @@ firebase deploy --only hosting
 - [x] Firebase Hosting 部署
 - [x] localStorage 保留為快取層（秒開 + 離線）
 - [x] 雙部署支援（Firebase Hosting + GitHub Pages）
+- [x] `onSnapshot` 即時同步（多 tab / 多裝置即時看到變更）
+- [x] 拖曳期間暫停同步，放手後 flush（避免中間狀態洩漏）
 
-### 🔜 Phase 2.5 — 體驗優化 + 安全
-- [ ] ⭐ **候選池排序** — 加 `cardOrder` 欄位，候選區卡片可拖動排序（重要的往左放）
+### ✅ Phase 2.5 — 體驗優化（完成）
+- [x] **候選池排序** — `cardOrder` 欄位，候選區卡片可拖動排序（重要的往左放）
+- [x] **每日主題標籤** — `dayLabels`，雙擊在日期欄頂部加標籤（如「🗻 富士山」）
+- [x] **留言編輯 / 刪除** — hover 留言顯示 ✏️ 🗑️ 按鈕
+- [x] **暱稱系統** — 首次進入設定暱稱，留空自動生成隨機名（如「冒險的🐻熊 #42」）
+- [x] **卡片刪除** — 🗑️ 按鈕 + 確認對話框，從所有 plan 中移除
+- [x] **Jarvis 直接寫入 Firestore** — 透過 REST API 即時推送卡片 / 調整排程 ✅ 已驗證
+
+### 🔜 Phase 2.7 — 安全 + 分享
 - [ ] 手機版 UI 優化（卡片操作、拖放手感、候選池瀏覽）
-- [ ] Firestore rules 收緊（目前 allow all）
-- [ ] 簡單密碼保護 or Firebase Auth
+- [ ] Firestore rules 收緊（讀取開放，寫入限制）
 - [ ] 分享連結（`/trip/{tripId}` 支援多趟旅行）
 
 ### 🔮 Phase 3 — AI 整合
 - [ ] **Gemini API 生成候選卡** — 輸入目的地/天數，AI 自動生成行程建議卡片
-- [ ] **Jarvis 直接寫入 Firestore** — 在聊天中對 Jarvis 說「幫我加幾個東京美食景點」，卡片即時出現在候選池
 - [ ] **AI 自動排程** — Jarvis clone 一個新方案，根據地理位置/營業時間自動排出最順路線
 - [ ] Firebase Cloud Functions 當 LLM proxy（保護 API key）
 

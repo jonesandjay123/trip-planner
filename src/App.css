@@ -1096,8 +1096,23 @@ body {
   .header-left {
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
+  }
+
+  /* Icon + title on same row */
+  .header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header-icon {
+    font-size: 22px;
+  }
+
+  .trip-name {
+    font-size: 16px;
   }
 
   /* Date range + actions on same row */
@@ -1124,6 +1139,46 @@ body {
   .header-actions .theme-toggle {
     font-size: 16px;
     padding: 2px;
+  }
+
+  /* Candidate pool: fixed height on mobile */
+  .candidate-pool {
+    padding: 10px 12px;
+  }
+
+  .pool-cards {
+    max-height: 180px;
+    overflow-y: auto;
+    flex-wrap: nowrap;
+  }
+
+  .pool-cards .card {
+    min-width: 160px;
+    max-width: 180px;
+    max-height: 160px;
+    overflow: hidden;
+    position: relative;
+    font-size: 12px;
+  }
+
+  /* Fade-out hint that card is truncated */
+  .pool-cards .card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    background: linear-gradient(transparent, var(--bg-primary));
+    pointer-events: none;
+  }
+
+  .pool-header {
+    margin-bottom: 8px;
+  }
+
+  .pool-title {
+    font-size: 14px;
   }
 
   .day-column {

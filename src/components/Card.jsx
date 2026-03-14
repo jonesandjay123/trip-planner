@@ -182,7 +182,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
             type="text"
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSubmitComment(e); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitComment(e); } }}
             placeholder="快速留言..."
             onPointerDown={(e) => e.stopPropagation()}
           />

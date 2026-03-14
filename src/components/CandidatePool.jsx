@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import Card from './Card';
 
-export default function CandidatePool({ cardIds, cardMap, onAddNew, onEdit, onDeleteCard, onAddComment, onEditComment, onDeleteComment }) {
+export default function CandidatePool({ cardIds, cardMap, onAddNew, onAiGenerate, onEdit, onDeleteCard, onAddComment, onEditComment, onDeleteComment }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled' });
 
   return (
@@ -13,7 +13,10 @@ export default function CandidatePool({ cardIds, cardMap, onAddNew, onEdit, onDe
         <span className="pool-title">候選行程</span>
         <span className="pool-count">{cardIds.length} 個行程</span>
         <button className="btn btn-add-card" onClick={onAddNew}>
-          ➕ 新增行程
+          ➕ 新增
+        </button>
+        <button className="btn btn-ai-generate" onClick={onAiGenerate}>
+          🤖 AI 推薦
         </button>
       </div>
       <SortableContext

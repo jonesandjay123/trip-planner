@@ -19,6 +19,7 @@ import Card from './components/Card';
 import CardModal from './components/CardModal';
 import PlanSelector from './components/PlanSelector';
 import NicknameModal from './components/NicknameModal';
+import AiModal from './components/AiModal';
 import { useNickname } from './hooks/useNickname';
 
 const STATE_VERSION = 7; // v7: day labels + cardOrder for pool sorting
@@ -107,6 +108,7 @@ export default function App() {
   const [modalCard, setModalCard] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isNewCard, setIsNewCard] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   const cardMap = state.cards || {};
   const activePlan = useMemo(() => getActivePlan(state), [state]);
@@ -420,6 +422,19 @@ export default function App() {
     });
   }
 
+  function handleAiCardsGenerated(aiCards) {
+    setState((prev) => {
+      const newCards = { ...prev.cards };
+      const newOrder = [...(prev.cardOrder || [])];
+      // Prepend AI cards (newest first)
+      for (const card of aiCards.reverse()) {
+        newCards[card.id] = card;
+        newOrder.unshift(card.id);
+      }
+      return { ...prev, cards: newCards, cardOrder: newOrder };
+    });
+  }
+
   function handleDeleteCard(cardId) {
     setState((prev) => {
       const { [cardId]: removed, ...remainingCards } = prev.cards;
@@ -595,6 +610,7 @@ export default function App() {
           cardIds={unscheduledCardIds}
           cardMap={cardMap}
           onAddNew={openNewCardModal}
+          onAiGenerate={() => setAiModalOpen(true)}
           onEdit={openEditModal}
           onDeleteCard={handleDeleteCard}
           onAddComment={handleAddComment}
@@ -612,6 +628,13 @@ export default function App() {
           card={modalCard}
           onSave={handleModalSave}
           onClose={closeModal}
+        />
+      )}
+
+      {aiModalOpen && (
+        <AiModal
+          onClose={() => setAiModalOpen(false)}
+          onCardsGenerated={handleAiCardsGenerated}
         />
       )}
     </DndContext>

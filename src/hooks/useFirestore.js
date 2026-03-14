@@ -4,10 +4,10 @@ import { db } from '../firebase';
 
 const FIRESTORE_DOC = 'trips/main';
 const LOCAL_CACHE_KEY = 'trip-planner-state';
+const DEBOUNCE_MS = 600; // Wait for drag operations to settle
 
 export function useFirestore(initialValue) {
   const [state, setState] = useState(() => {
-    // Try local cache first for instant render
     try {
       const cached = localStorage.getItem(LOCAL_CACHE_KEY);
       if (cached) {
@@ -23,8 +23,10 @@ export function useFirestore(initialValue) {
   });
 
   const [loading, setLoading] = useState(true);
-  const isLocalChange = useRef(false);
   const initialized = useRef(false);
+  const debounceTimer = useRef(null);
+  const lastWriteTime = useRef(0);
+  const WRITE_COOLDOWN = 1500; // Ignore onSnapshot within 1.5s of our own write
 
   // --- Real-time listener (onSnapshot) ---
   useEffect(() => {
@@ -34,19 +36,15 @@ export function useFirestore(initialValue) {
         if (snap.exists()) {
           const remote = snap.data();
           if (remote._version === initialValue._version) {
-            // Skip if this snapshot was triggered by our own write
-            if (isLocalChange.current) {
-              isLocalChange.current = false;
+            // Skip echoes from our own writes (within cooldown window)
+            const timeSinceWrite = Date.now() - lastWriteTime.current;
+            if (timeSinceWrite < WRITE_COOLDOWN) {
               return;
             }
             setState(remote);
             localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(remote));
             console.log('📡 Real-time update from Firestore');
-          } else {
-            console.log('⚠️ Firestore version mismatch, ignoring remote data');
           }
-        } else {
-          console.log('📝 No Firestore data yet');
         }
         if (!initialized.current) {
           initialized.current = true;
@@ -65,26 +63,34 @@ export function useFirestore(initialValue) {
     return () => unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- Sync local state changes to Firestore ---
+  // --- Debounced sync to Firestore ---
   useEffect(() => {
-    // Don't write until initialized
     if (!initialized.current) return;
 
-    // Save to localStorage (instant)
+    // Always save to localStorage immediately
     try {
       localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(state));
     } catch (e) {
       console.error('Failed to save to localStorage:', e);
     }
 
-    // Save to Firestore (mark as local change so onSnapshot skips it)
-    isLocalChange.current = true;
-    setDoc(doc(db, FIRESTORE_DOC), state)
-      .then(() => console.log('☁️ Synced to Firestore'))
-      .catch((err) => {
-        isLocalChange.current = false;
-        console.error('❌ Failed to sync to Firestore:', err);
-      });
+    // Debounce Firestore writes (wait for drag operations to finish)
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(() => {
+      lastWriteTime.current = Date.now();
+      setDoc(doc(db, FIRESTORE_DOC), state)
+        .then(() => console.log('☁️ Synced to Firestore'))
+        .catch((err) => console.error('❌ Failed to sync:', err));
+    }, DEBOUNCE_MS);
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
   }, [state]);
 
   const resetState = useCallback((newState) => {

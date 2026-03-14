@@ -76,7 +76,13 @@ Rules:
 
         let text = null;
         if (
-          data?.candidates?.[0]?.content?.parts?.[0]?.text
+          data &&
+          data.candidates &&
+          data.candidates[0] &&
+          data.candidates[0].content &&
+          data.candidates[0].content.parts &&
+          data.candidates[0].content.parts[0] &&
+          data.candidates[0].content.parts[0].text
         ) {
           text = data.candidates[0].content.parts[0].text;
         }
@@ -89,7 +95,9 @@ Rules:
         // Clean markdown fences if present
         let cleanText = text.trim();
         if (cleanText.startsWith("```")) {
-          cleanText = cleanText.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
+          cleanText = cleanText
+              .replace(/^```(?:json)?\s*/, "")
+              .replace(/```\s*$/, "");
         }
 
         let parsed;

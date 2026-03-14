@@ -1229,12 +1229,13 @@ body {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   padding: 20px;
+  backdrop-filter: blur(4px);
 }
 
 .nickname-modal {
@@ -1304,7 +1305,9 @@ body {
   padding: 28px;
   max-width: 500px;
   width: 100%;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 2001;
 }
 
 .ai-modal h2 {

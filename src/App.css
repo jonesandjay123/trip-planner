@@ -482,6 +482,46 @@ body {
   cursor: default;
 }
 
+/* Day Label */
+.day-label {
+  padding: 6px 10px;
+  text-align: center;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-label-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.day-label-text:not(:empty) {
+  cursor: pointer;
+}
+
+.day-label-input {
+  width: 100%;
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+}
+
 .day-zones {
   display: flex;
   flex-direction: column;

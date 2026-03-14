@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DropZone from './DropZone';
 
 const DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
@@ -12,7 +12,29 @@ function formatDayHeader(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function DayColumn({ date, zones, cardMap, onSwap, isFirst, isLast, onEditCard, onAddComment }) {
+export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, onEditCard, onAddComment, onLabelChange }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(label || '');
+
+  function handleDoubleClick() {
+    setDraft(label || '');
+    setEditing(true);
+  }
+
+  function handleBlur() {
+    setEditing(false);
+    if (onLabelChange) onLabelChange(date, draft.trim());
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    } else if (e.key === 'Escape') {
+      setDraft(label || '');
+      setEditing(false);
+    }
+  }
+
   return (
     <div className="day-column">
       <div className="day-header">
@@ -34,6 +56,26 @@ export default function DayColumn({ date, zones, cardMap, onSwap, isFirst, isLas
           ▶
         </button>
       </div>
+
+      <div className="day-label" onDoubleClick={handleDoubleClick}>
+        {editing ? (
+          <input
+            className="day-label-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            placeholder="主題標籤..."
+            maxLength={20}
+          />
+        ) : (
+          <span className="day-label-text" title="雙擊編輯主題標籤">
+            {label || '📌 點擊加標籤'}
+          </span>
+        )}
+      </div>
+
       <div className="day-zones">
         {ZONES.map((zone) => (
           <DropZone

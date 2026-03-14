@@ -19,7 +19,7 @@ import Card from './components/Card';
 import CardModal from './components/CardModal';
 import PlanSelector from './components/PlanSelector';
 
-const STATE_VERSION = 6; // v6: unscheduled computed, not stored
+const STATE_VERSION = 7; // v7: day labels + cardOrder for pool sorting
 
 function generateDays(startDate, endDate) {
   const days = {};
@@ -50,6 +50,9 @@ function createInitialState() {
     // --- Cards (→ Firestore: trips/{tripId}/cards/{cardId}) ---
     cards: Object.fromEntries(seedCards.map((c) => [c.id, { ...c, comments: [] }])),
 
+    // --- Card display order for candidate pool ---
+    cardOrder: seedCards.map((c) => c.id),
+
     // --- Plans keyed by ID (→ Firestore: trips/{tripId}/plans/{planId}) ---
     plans: {
       default: {
@@ -57,6 +60,7 @@ function createInitialState() {
         name: 'Default',
         dayOrder: defaultDayOrder,
         days: defaultDays,
+        dayLabels: {}, // { "2026-05-01": "富士山", ... }
       },
     },
 
@@ -105,7 +109,7 @@ export default function App() {
   const activeDays = useMemo(() => getPlanDays(activePlan), [activePlan]);
   const activeDayOrder = useMemo(() => getPlanDayOrder(activePlan), [activePlan]);
 
-  // Unscheduled = all cards − cards assigned in active plan (computed, not stored)
+  // Unscheduled = all cards − cards assigned in active plan, sorted by cardOrder
   const unscheduledCardIds = useMemo(() => {
     const assigned = new Set();
     Object.values(activeDays).forEach((zones) => {
@@ -113,8 +117,13 @@ export default function App() {
         cards.forEach((id) => assigned.add(id));
       });
     });
-    return Object.keys(cardMap).filter((id) => !assigned.has(id));
-  }, [cardMap, activeDays]);
+    const allCardIds = Object.keys(cardMap);
+    const order = state.cardOrder || [];
+    // Cards in cardOrder first (in order), then any new cards not yet in cardOrder
+    const ordered = order.filter((id) => allCardIds.includes(id) && !assigned.has(id));
+    const rest = allCardIds.filter((id) => !assigned.has(id) && !order.includes(id));
+    return [...ordered, ...rest];
+  }, [cardMap, activeDays, state.cardOrder]);
 
   // ==================== Plan operations ====================
 
@@ -134,6 +143,7 @@ export default function App() {
         name: `${source.name} (副本)`,
         dayOrder: [...source.dayOrder],
         days: JSON.parse(JSON.stringify(source.days)),
+        dayLabels: { ...(source.dayLabels || {}) },
       };
       return {
         ...prev,
@@ -185,6 +195,7 @@ export default function App() {
             ...plan,
             days: emptyDays,
             dayOrder: Object.keys(emptyDays).sort(),
+            dayLabels: {},
           },
         },
       };
@@ -302,7 +313,25 @@ export default function App() {
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
         if (activeContainer === 'unscheduled') {
-          // Unscheduled is computed — reorder within pool is a no-op
+          // Reorder within candidate pool — update cardOrder
+          const reordered = arrayMove(items, oldIndex, newIndex);
+          setState((prev) => {
+            // Rebuild full cardOrder: reordered unscheduled + assigned cards keep their positions
+            const assigned = new Set();
+            const plan = getActivePlan(prev);
+            Object.values(plan.days).forEach((zones) => {
+              Object.values(zones).forEach((cards) => {
+                cards.forEach((id) => assigned.add(id));
+              });
+            });
+            // Keep assigned cards in their original order, splice in reordered unscheduled
+            const newOrder = [...reordered, ...(prev.cardOrder || []).filter((id) => assigned.has(id))];
+            // Add any cards not in order yet
+            Object.keys(prev.cards).forEach((id) => {
+              if (!newOrder.includes(id)) newOrder.push(id);
+            });
+            return { ...prev, cardOrder: newOrder };
+          });
           return;
         }
         const reordered = arrayMove(items, oldIndex, newIndex);
@@ -339,12 +368,17 @@ export default function App() {
   }
 
   function handleModalSave(updatedCard, isNew) {
-    // Just add/update the card — if it's new, it'll auto-appear in unscheduled
-    // because unscheduled = all cards − assigned cards (computed)
-    setState((prev) => ({
-      ...prev,
-      cards: { ...prev.cards, [updatedCard.id]: updatedCard },
-    }));
+    setState((prev) => {
+      const newState = {
+        ...prev,
+        cards: { ...prev.cards, [updatedCard.id]: updatedCard },
+      };
+      // New cards go to the front of cardOrder (most visible position)
+      if (isNew) {
+        newState.cardOrder = [updatedCard.id, ...(prev.cardOrder || [])];
+      }
+      return newState;
+    });
     closeModal();
   }
 
@@ -404,6 +438,13 @@ export default function App() {
     if (window.confirm('確定要重置所有資料嗎？')) {
       resetState(createInitialState());
     }
+  }
+
+  function handleDayLabelChange(date, label) {
+    updateActivePlan((plan) => ({
+      ...plan,
+      dayLabels: { ...(plan.dayLabels || {}), [date]: label },
+    }));
   }
 
   function handleSwapDay(date, direction) {
@@ -473,12 +514,14 @@ export default function App() {
               key={date}
               date={date}
               zones={activeDays[date]}
+              label={(activePlan?.dayLabels || {})[date] || ''}
               cardMap={cardMap}
               onSwap={handleSwapDay}
               isFirst={idx === 0}
               isLast={idx === activeDayOrder.length - 1}
               onEditCard={openEditModal}
               onAddComment={handleAddComment}
+              onLabelChange={handleDayLabelChange}
             />
           ))}
         </div>

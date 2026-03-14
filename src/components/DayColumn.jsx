@@ -12,7 +12,7 @@ function formatDayHeader(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, onEditCard, onAddComment, onEditComment, onDeleteComment, onLabelChange }) {
+export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, onEditCard, onDeleteCard, onAddComment, onEditComment, onDeleteComment, onLabelChange }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label || '');
 
@@ -85,6 +85,7 @@ export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst
             cardIds={zones[zone] || []}
             cardMap={cardMap}
             onEditCard={onEditCard}
+            onDeleteCard={onDeleteCard}
             onAddComment={onAddComment}
             onEditComment={onEditComment}
             onDeleteComment={onDeleteComment}

@@ -18,7 +18,7 @@ function formatCommentDate(timestamp) {
   return `${month}/${day} ${h}:${m}`;
 }
 
-function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEdit, onAddComment, onEditComment, onDeleteComment }) {
+function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
   const [commentText, setCommentText] = useState('');
   const [editingIdx, setEditingIdx] = useState(-1);
   const [editDraft, setEditDraft] = useState('');
@@ -68,6 +68,20 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
               title="編輯"
             >
               ✏️
+            </button>
+          )}
+          {onDelete && (
+            <button
+              className="card-edit-btn card-delete-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`確定要刪除「${card.title}」嗎？`)) {
+                  onDelete(card.id);
+                }
+              }}
+              title="刪除卡片"
+            >
+              🗑️
             </button>
           )}
           {onToggle && (
@@ -184,7 +198,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
   );
 }
 
-export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onAddComment, onEditComment, onDeleteComment }) {
+export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
   const [expanded, setExpanded] = useState(false);
 
   const showCompact = !inPool && !expanded && !isDragOverlay;
@@ -198,6 +212,7 @@ export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit,
       compact={showCompact}
       onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
       onEdit={showActions ? onEdit : undefined}
+      onDelete={showActions ? onDelete : undefined}
       onAddComment={showActions ? onAddComment : undefined}
       onEditComment={showActions ? onEditComment : undefined}
       onDeleteComment={showActions ? onDeleteComment : undefined}

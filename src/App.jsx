@@ -418,6 +418,28 @@ export default function App() {
     });
   }
 
+  function handleDeleteCard(cardId) {
+    setState((prev) => {
+      const { [cardId]: removed, ...remainingCards } = prev.cards;
+      // Remove from cardOrder
+      const newCardOrder = (prev.cardOrder || []).filter((id) => id !== cardId);
+      // Remove from all plans' days
+      const newPlans = {};
+      for (const [planId, plan] of Object.entries(prev.plans)) {
+        const newDays = {};
+        for (const [date, zones] of Object.entries(plan.days)) {
+          const newZones = {};
+          for (const [zone, cards] of Object.entries(zones)) {
+            newZones[zone] = cards.filter((id) => id !== cardId);
+          }
+          newDays[date] = newZones;
+        }
+        newPlans[planId] = { ...plan, days: newDays };
+      }
+      return { ...prev, cards: remainingCards, cardOrder: newCardOrder, plans: newPlans };
+    });
+  }
+
   function handleDeleteComment(cardId, commentIdx) {
     setState((prev) => {
       const card = prev.cards[cardId];
@@ -558,6 +580,7 @@ export default function App() {
               isFirst={idx === 0}
               isLast={idx === activeDayOrder.length - 1}
               onEditCard={openEditModal}
+              onDeleteCard={handleDeleteCard}
               onAddComment={handleAddComment}
               onEditComment={handleEditComment}
               onDeleteComment={handleDeleteComment}
@@ -571,6 +594,7 @@ export default function App() {
           cardMap={cardMap}
           onAddNew={openNewCardModal}
           onEdit={openEditModal}
+          onDeleteCard={handleDeleteCard}
           onAddComment={handleAddComment}
           onEditComment={handleEditComment}
           onDeleteComment={handleDeleteComment}

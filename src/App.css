@@ -776,6 +776,10 @@ body {
   background: var(--btn-bg);
 }
 
+.card-delete-btn:hover {
+  background: rgba(255, 0, 0, 0.15);
+}
+
 /* ===== Card Comments ===== */
 .card-comments {
   margin-top: 6px;

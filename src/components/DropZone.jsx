@@ -10,7 +10,7 @@ const ZONE_CONFIG = {
   flexible: { label: '🔄 彈性', colorVar: 'var(--zone-flexible)' },
 };
 
-export default function DropZone({ zone, cardIds, cardMap, date, onEditCard, onAddComment }) {
+export default function DropZone({ zone, cardIds, cardMap, date, onEditCard, onAddComment, onEditComment, onDeleteComment }) {
   const containerId = `${date}::${zone}`;
   const config = ZONE_CONFIG[zone];
 
@@ -42,6 +42,8 @@ export default function DropZone({ zone, cardIds, cardMap, date, onEditCard, onA
                 inPool={false}
                 onEdit={onEditCard}
                 onAddComment={onAddComment}
+                onEditComment={onEditComment}
+                onDeleteComment={onDeleteComment}
               />
             );
           })}

@@ -18,8 +18,10 @@ function formatCommentDate(timestamp) {
   return `${month}/${day} ${h}:${m}`;
 }
 
-function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEdit, onAddComment }) {
+function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEdit, onAddComment, onEditComment, onDeleteComment }) {
   const [commentText, setCommentText] = useState('');
+  const [editingIdx, setEditingIdx] = useState(-1);
+  const [editDraft, setEditDraft] = useState('');
   const zoneMatch = currentZone && card.zone === currentZone;
   const comments = card.comments || [];
 
@@ -94,7 +96,65 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
         <div className="card-comments">
           {comments.map((c, i) => (
             <div key={i} className="card-comment">
-              💬 {c.author} ({formatCommentDate(c.timestamp)}): {c.text}
+              {editingIdx === i ? (
+                <div className="comment-edit-row" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    className="comment-edit-input"
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && editDraft.trim()) {
+                        onEditComment?.(card.id, i, editDraft.trim());
+                        setEditingIdx(-1);
+                      } else if (e.key === 'Escape') {
+                        setEditingIdx(-1);
+                      }
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                  <button
+                    className="comment-save-btn"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (editDraft.trim()) {
+                        onEditComment?.(card.id, i, editDraft.trim());
+                        setEditingIdx(-1);
+                      }
+                    }}
+                  >✓</button>
+                  <button
+                    className="comment-cancel-btn"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); setEditingIdx(-1); }}
+                  >✕</button>
+                </div>
+              ) : (
+                <>
+                  <span className="comment-text">💬 {c.author} ({formatCommentDate(c.timestamp)}): {c.text}</span>
+                  {(onEditComment || onDeleteComment) && (
+                    <span className="comment-actions">
+                      {onEditComment && (
+                        <button
+                          className="comment-action-btn"
+                          title="編輯"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); setEditDraft(c.text); setEditingIdx(i); }}
+                        >✏️</button>
+                      )}
+                      {onDeleteComment && (
+                        <button
+                          className="comment-action-btn"
+                          title="刪除"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); onDeleteComment(card.id, i); }}
+                        >🗑️</button>
+                      )}
+                    </span>
+                  )}
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -124,10 +184,11 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
   );
 }
 
-export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onAddComment }) {
+export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onAddComment, onEditComment, onDeleteComment }) {
   const [expanded, setExpanded] = useState(false);
 
   const showCompact = !inPool && !expanded && !isDragOverlay;
+  const showActions = !isDragOverlay && (inPool || expanded);
 
   const content = (
     <CardContent
@@ -136,8 +197,10 @@ export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit,
       currentZone={currentZone}
       compact={showCompact}
       onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
-      onEdit={!isDragOverlay && (inPool || expanded) ? onEdit : undefined}
-      onAddComment={!isDragOverlay && (inPool || expanded) ? onAddComment : undefined}
+      onEdit={showActions ? onEdit : undefined}
+      onAddComment={showActions ? onAddComment : undefined}
+      onEditComment={showActions ? onEditComment : undefined}
+      onDeleteComment={showActions ? onDeleteComment : undefined}
     />
   );
 

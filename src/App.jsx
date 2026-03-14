@@ -401,6 +401,31 @@ export default function App() {
     }));
   }
 
+  function handleEditComment(cardId, commentIdx, newText) {
+    setState((prev) => {
+      const card = prev.cards[cardId];
+      if (!card) return prev;
+      const newComments = [...(card.comments || [])];
+      newComments[commentIdx] = { ...newComments[commentIdx], text: newText };
+      return {
+        ...prev,
+        cards: { ...prev.cards, [cardId]: { ...card, comments: newComments } },
+      };
+    });
+  }
+
+  function handleDeleteComment(cardId, commentIdx) {
+    setState((prev) => {
+      const card = prev.cards[cardId];
+      if (!card) return prev;
+      const newComments = (card.comments || []).filter((_, i) => i !== commentIdx);
+      return {
+        ...prev,
+        cards: { ...prev.cards, [cardId]: { ...card, comments: newComments } },
+      };
+    });
+  }
+
   // ==================== Trip-level actions ====================
 
   function handleTripNameChange(name) {
@@ -521,6 +546,8 @@ export default function App() {
               isLast={idx === activeDayOrder.length - 1}
               onEditCard={openEditModal}
               onAddComment={handleAddComment}
+              onEditComment={handleEditComment}
+              onDeleteComment={handleDeleteComment}
               onLabelChange={handleDayLabelChange}
             />
           ))}
@@ -532,6 +559,8 @@ export default function App() {
           onAddNew={openNewCardModal}
           onEdit={openEditModal}
           onAddComment={handleAddComment}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
         />
       </div>
 

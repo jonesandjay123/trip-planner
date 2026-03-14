@@ -38,24 +38,24 @@ export default function Header({ tripName, startDate, endDate, onTripNameChange,
   return (
     <header className="header">
       <div className="header-left">
-        <div className="header-title-row">
-          <span className="header-icon">✈️</span>
-          {editing ? (
-            <input
-              className="trip-name-input"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
-              autoFocus
-            />
-          ) : (
-            <h1 className="trip-name" onDoubleClick={handleDoubleClick} title="雙擊編輯">
-              {tripName}
-            </h1>
-          )}
-        </div>
         <div className="header-date-row">
+          <div className="header-title-row">
+            <span className="header-icon">✈️</span>
+            {editing ? (
+              <input
+                className="trip-name-input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                autoFocus
+              />
+            ) : (
+              <h1 className="trip-name" onDoubleClick={handleDoubleClick} title="雙擊編輯">
+                {tripName}
+              </h1>
+            )}
+          </div>
           <span className="date-range">
             {formatDate(startDate)} → {formatDate(endDate)}
           </span>

@@ -4,7 +4,7 @@ import { db } from '../firebase';
 
 const FIRESTORE_DOC = 'trips/main';
 const LOCAL_CACHE_KEY = 'trip-planner-state';
-const DEBOUNCE_MS = 600; // Wait for drag operations to settle
+const DEBOUNCE_MS = 600;
 
 export function useFirestore(initialValue) {
   const [state, setState] = useState(() => {
@@ -26,7 +26,9 @@ export function useFirestore(initialValue) {
   const initialized = useRef(false);
   const debounceTimer = useRef(null);
   const lastWriteTime = useRef(0);
-  const WRITE_COOLDOWN = 1500; // Ignore onSnapshot within 1.5s of our own write
+  const dragging = useRef(false);
+  const pendingWrite = useRef(false);
+  const WRITE_COOLDOWN = 1500;
 
   // --- Real-time listener (onSnapshot) ---
   useEffect(() => {
@@ -74,7 +76,13 @@ export function useFirestore(initialValue) {
       console.error('Failed to save to localStorage:', e);
     }
 
-    // Debounce Firestore writes (wait for drag operations to finish)
+    // If dragging, mark pending and don't write yet
+    if (dragging.current) {
+      pendingWrite.current = true;
+      return;
+    }
+
+    // Debounce Firestore writes
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
@@ -98,5 +106,25 @@ export function useFirestore(initialValue) {
     setState(newState);
   }, []);
 
-  return [state, setState, resetState, loading];
+  const setDragging = useCallback((isDragging) => {
+    dragging.current = isDragging;
+    // When drag ends, flush pending write
+    if (!isDragging && pendingWrite.current) {
+      pendingWrite.current = false;
+      lastWriteTime.current = Date.now();
+      // Read latest state from localStorage (most up-to-date)
+      try {
+        const latest = JSON.parse(localStorage.getItem(LOCAL_CACHE_KEY));
+        if (latest) {
+          setDoc(doc(db, FIRESTORE_DOC), latest)
+            .then(() => console.log('☁️ Synced after drag end'))
+            .catch((err) => console.error('❌ Failed to sync:', err));
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  return [state, setState, resetState, loading, setDragging];
 }

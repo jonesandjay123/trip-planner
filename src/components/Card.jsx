@@ -50,9 +50,10 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
 
   function handleSubmitComment(e) {
     e.stopPropagation();
-    if (commentText.trim() && onAddComment) {
-      onAddComment(card.id, commentText);
-      setCommentText('');
+    const text = commentText.trim();
+    if (text && onAddComment) {
+      setCommentText(''); // Clear first to prevent double-submit
+      onAddComment(card.id, text);
     }
   }
 

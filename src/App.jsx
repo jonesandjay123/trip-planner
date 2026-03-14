@@ -89,7 +89,7 @@ function getPlanDayOrder(plan) {
 // ==================== App ====================
 
 export default function App() {
-  const [state, setState, resetState, loading] = useFirestore(createInitialState());
+  const [state, setState, resetState, loading, setDragging] = useFirestore(createInitialState());
   const { nickname, saveNickname, generateRandomName } = useNickname();
   const [pendingRandomName] = useState(() => generateRandomName());
   const [activeId, setActiveId] = useState(null);
@@ -264,6 +264,7 @@ export default function App() {
 
   function handleDragStart(event) {
     setActiveId(event.active.id);
+    setDragging(true);
   }
 
   function handleDragOver(event) {
@@ -303,6 +304,7 @@ export default function App() {
   function handleDragEnd(event) {
     const { active, over } = event;
     setActiveId(null);
+    setDragging(false);
     if (!over) return;
 
     const activeContainer = findContainer(active.id);

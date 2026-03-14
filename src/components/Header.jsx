@@ -53,21 +53,23 @@ export default function Header({ tripName, startDate, endDate, onTripNameChange,
             {tripName}
           </h1>
         )}
-        <span className="date-range">
-          {formatDate(startDate)} → {formatDate(endDate)}
-        </span>
+        <div className="header-date-row">
+          <span className="date-range">
+            {formatDate(startDate)} → {formatDate(endDate)}
+          </span>
+          <div className="header-actions">
+            <button className="theme-toggle" onClick={onToggleDark} title={darkMode ? '切換淺色模式' : '切換深色模式'}>
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+            <button className="btn btn-export" onClick={onExport}>
+              📋 匯出
+            </button>
+            <button className="btn btn-reset" onClick={onReset}>
+              🔄 重置
+            </button>
+          </div>
+        </div>
         {planSelector}
-      </div>
-      <div className="header-actions">
-        <button className="theme-toggle" onClick={onToggleDark} title={darkMode ? '切換淺色模式' : '切換深色模式'}>
-          {darkMode ? '☀️' : '🌙'}
-        </button>
-        <button className="btn btn-export" onClick={onExport}>
-          📋 匯出
-        </button>
-        <button className="btn btn-reset" onClick={onReset}>
-          🔄 重置
-        </button>
       </div>
     </header>
   );

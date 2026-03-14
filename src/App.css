@@ -211,6 +211,12 @@ body {
   border-radius: 12px;
 }
 
+.header-date-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header-actions {
   display: flex;
   gap: 8px;
@@ -1082,14 +1088,42 @@ body {
 }
 
 @media (max-width: 480px) {
+  .header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .header-left {
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
+    width: 100%;
+  }
+
+  /* Date range + actions on same row */
+  .header-date-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
 
   .date-range {
     font-size: 12px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-actions .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .header-actions .theme-toggle {
+    font-size: 16px;
+    padding: 2px;
   }
 
   .day-column {

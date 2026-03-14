@@ -1,15 +1,16 @@
 # ✈️ Trip Planner
 
-多人協作的拖放式旅行規劃工具 — React + Vite + dnd-kit + Firebase
+多人協作的拖放式旅行規劃工具 — React + Vite + dnd-kit + Firebase + Gemini AI
 
-👉 **[線上版（Firebase）](https://trip-planner-ab5a9.web.app/)** ｜ [GitHub Pages 鏡像](https://jonesandjay123.github.io/trip-planner/)
+👉 [GitHub Pages 鏡像（靜態版）](https://jonesandjay123.github.io/trip-planner/)
 
-> 核心協作功能已完整：桌面版多人規劃、候選池排序、每日主題標籤、留言討論、即時同步、跨裝置共享都已可用。接下來主要剩下手機體驗、分享連結、權限收斂，以及 LLM 對接。
+> 從靜態 MVP 到 Firebase 即時協作到 AI 生成候選卡，兩天內完成。核心協作功能已完整，AI 行程推薦已上線。
 
 ## 🎯 用途
 
-1. 跟朋友一起 brainstorm 東京行程 — 丟點子、拖拉排序、留言討論
-2. Vibe coding 教學案例 — 展示 LLM API 串接、即時協作、Firebase 整合
+1. 跟朋友一起 brainstorm 旅行行程 — 丟點子、拖拉排序、留言討論
+2. AI 一鍵生成候選景點，擴充靈感
+3. Vibe coding 教學案例 — 展示 LLM API 串接、即時協作、Firebase 整合
 
 ## ✨ Features
 
@@ -27,6 +28,12 @@
 - 🗑️ **刪除卡片** — 確認後刪除，同步從所有方案移除
 - ◀▶ **日期換序** — 調整天數順序
 
+### AI 整合
+- 🤖 **AI 推薦行程** — 輸入主題（如「東京二郎系拉麵」），Gemini 自動生成候選卡片
+- 🔢 **可選生成數量** — 1 / 2 / 3 / 5 / 8 張，預設 2 張
+- 💡 **預設建議** — 一鍵選擇常見主題快速生成
+- 🔒 **Cloud Function proxy** — API key 安全存放在 server side，不暴露前端
+
 ### 雲端同步
 - ☁️ **Firestore 即時同步** — `onSnapshot` 多分頁 / 多裝置間自動同步更新
 - 🔄 **localStorage 快取** — 本地快取讓頁面秒開，背景從 Firestore 同步
@@ -37,7 +44,7 @@
 
 ### UI/UX
 - 🌙 **深色模式** — 自動偵測系統偏好 + 手動切換
-- 📱 **響應式** — 手機/平板/桌面都支援
+- 📱 **響應式** — 手機/平板/桌面都支援（手機版 header 壓縮 + 候選池固定高度）
 - 👤 **暱稱系統** — 首次進站詢問暱稱，留言自動署名；留空則隨機生成（如「冒險的🐻熊 #42」）
 - 📋 **匯出 JSON** — 匯出當前方案到剪貼簿
 - 🔄 **全域重置** — 重置所有資料回初始狀態
@@ -57,23 +64,25 @@ src/
 │   ├── Card.jsx            # 行程卡片（壓縮/展開 + 留言）
 │   ├── CardModal.jsx       # 卡片編輯 Modal
 │   ├── CandidatePool.jsx   # 候選行程池
-│   └── NicknameModal.jsx   # 暱稱輸入 Modal
+│   ├── NicknameModal.jsx   # 暱稱輸入 Modal
+│   └── AiModal.jsx         # AI 推薦行程 Modal
 ├── hooks/
 │   ├── useFirestore.js     # Firestore 即時同步 + localStorage 快取 + debounce
 │   ├── useNickname.js      # 暱稱 localStorage + 隨機名字生成
 │   └── useLocalStorage.js  # （舊版，保留參考）
 └── data/
     └── cards.json          # 初始種子卡片（12 個東京景點）
+
+functions/
+└── index.js                # Cloud Function: Gemini API proxy (onCall)
 ```
 
 ## 🏗 資料結構（v7）
 
 ```js
-// === 存儲的資料（Firestore + localStorage 快取）===
 state = {
   _version: 7,
 
-  // Trip 主文件 → Firestore: trips/main
   tripMeta: {
     id: "tokyo-may-2026",
     title: "Tokyo May 2026",
@@ -82,33 +91,27 @@ state = {
     activePlanId: "default",
   },
 
-  // 共用卡片庫
   cards: {
-    "asakusa": { id, title, subtitle, zone, duration, comments: [], ... },
+    "asakusa": { id, title, subtitle, zone, duration, area, note, tags, comments: [], source: "seed" },
+    "ai_xxx": { ..., source: "gemini" },  // AI 生成的卡片
   },
 
-  // 候選池顯示順序
-  cardOrder: ["asakusa", "shibuya-sky", "tsukiji", ...],
+  cardOrder: ["asakusa", "shibuya-sky", ...],
 
-  // 方案（object keyed by ID）
   plans: {
     "default": {
       id: "default",
       name: "Default",
       dayOrder: ["2026-05-01", ...],
-      dayLabels: { "2026-05-01": "富士山", "2026-05-02": "河口湖" },
-      days: {
-        "2026-05-01": { morning: [], afternoon: [], evening: [], flexible: [] }
-      }
+      dayLabels: { "2026-05-01": "富士山" },
+      days: { "2026-05-01": { morning: [], afternoon: [], evening: [], flexible: [] } }
     }
   },
 
   planOrder: ["default"],
 }
 
-// === 計算的資料（不存儲）===
-// 候選池 = cardOrder 中未被 active plan 排入的卡片
-unscheduledCardIds = cardOrder.filter(id => !assignedInActivePlan(id))
+// 候選池 = cardOrder 中未被 active plan 排入的卡片（動態計算）
 ```
 
 **設計原則：**
@@ -118,8 +121,7 @@ unscheduledCardIds = cardOrder.filter(id => !assignedInActivePlan(id))
 - **cardOrder 獨立儲存** — 控制候選池卡片顯示順序
 - **dayLabels 跟 plan 走** — 每個方案可有自己的每日主題標籤
 - **Comments 跟卡片走** — 不跟方案走
-- **Plans 用 object 不用 array** — 方便 Firestore 單筆讀寫
-- **planOrder 獨立** — 控制顯示順序，跟 plan 資料分離
+- **AI 卡片標記 source: "gemini"** — 區分手動新增和 AI 生成
 
 ## 🚀 Getting Started
 
@@ -131,9 +133,9 @@ npm run dev
 ### 部署
 
 ```bash
-# Firebase Hosting
+# Firebase Hosting + Functions
 npm run build
-firebase deploy --only hosting
+firebase deploy
 
 # GitHub Pages（自動，push to main 觸發 GitHub Actions）
 ```
@@ -144,7 +146,8 @@ firebase deploy --only hosting
 |------|------|
 | 框架 | [Vite](https://vitejs.dev/) + [React](https://react.dev/) |
 | 拖放 | [@dnd-kit](https://dndkit.com/) |
-| 後端/資料庫 | [Firebase](https://firebase.google.com/)（Firestore + Hosting） |
+| 後端/資料庫 | [Firebase](https://firebase.google.com/)（Firestore + Hosting + Cloud Functions） |
+| AI | [Gemini API](https://ai.google.dev/)（透過 Cloud Function proxy） |
 | 快取 | localStorage（秒開 + 離線 fallback） |
 | 樣式 | Plain CSS + CSS Variables（深色/淺色模式） |
 | 部署 | Firebase Hosting（主要）+ GitHub Pages（鏡像） |
@@ -162,9 +165,8 @@ firebase deploy --only hosting
 - [x] Firestore 取代 localStorage（雲端持久化）
 - [x] Firebase Hosting 部署
 - [x] localStorage 保留為快取層（秒開 + 離線）
-- [x] 雙部署支援（Firebase Hosting + GitHub Pages）
-- [x] `onSnapshot` 即時同步（多 tab / 多裝置即時看到變更）
-- [x] 拖曳期間暫停同步，放手後 flush（避免中間狀態洩漏）
+- [x] `onSnapshot` 即時同步 + debounce + drag pause
+- [x] Jarvis REST API 寫入（已驗證可用）
 
 ### ✅ Phase 2.5 — 協作體驗優化（完成）
 - [x] 候選池排序（`cardOrder`）
@@ -172,21 +174,20 @@ firebase deploy --only hosting
 - [x] 留言編輯 / 刪除
 - [x] 暱稱系統（localStorage + 隨機名稱）
 - [x] 卡片刪除
-- [x] Jarvis REST API 寫入（已驗證可用）
-- [x] 留言輸入體驗修正（Enter 後清空）
+- [x] 手機版 UI 優化（header 壓縮 + 候選池固定高度）
 
-### 🔜 Phase 3 — 分享 / 權限 / 行動端優化
-- [ ] 手機版拖放體驗優化
-- [ ] 分享連結（`/trip/{tripId}`）
-- [ ] Firestore rules 收緊（讀取開放，寫入限制）
-- [ ] Read-only / editable 權限分流
-- [ ] 多 trip 支援（不再只有 `trips/main`）
+### ✅ Phase 3 — AI 整合（完成）
+- [x] Cloud Function proxy（保護 Gemini API key）
+- [x] AI 推薦行程 Modal（prompt + 數量選擇 + 建議 chips）
+- [x] 生成結果自動加入候選池
 
-### 🔮 Phase 4 — AI 整合
-- [x] Cloud Functions / API proxy 保護金鑰 (已部署: `https://generatetripcards-hldkl4z5ya-uc.a.run.app`)
-- [x] 導入 Firebase App Check (reCAPTCHA Enterprise) 保護 API 端點
-- [ ] Gemini API 生成候選卡 (前端對接準備中)
-- [ ] AI 自動排程（根據地理位置/營業時間排出最順路線）
+### 🔜 Phase 4 — 地圖 + 進階功能
+- [ ] 🗺️ **地圖整合** — 卡片標記經緯度，在地圖上顯示景點位置
+- [ ] 📍 **每日路線視覺化** — 按日期在地圖上畫出當天的行程路線
+- [ ] 🧭 **AI 排程建議** — 根據地理位置 + 營業時間自動排出最順路線
+- [ ] 🔗 分享連結（`/trip/{tripId}` 支援多趟旅行）
+- [ ] 🔒 Firestore rules 收緊 + 權限分流
+- [ ] 🌍 多 trip 支援
 
 ## 💡 設計決策
 
@@ -196,10 +197,11 @@ firebase deploy --only hosting
 | Firestore 單文件 MVP | `trips/main` 一個 doc 搞定，之後再拆 subcollection |
 | localStorage 快取 + Firestore 同步 | 秒開（本地）+ 雲端持久（Firestore），兩全其美 |
 | onSnapshot + debounce + drag pause | 即時同步但不會被拖曳中間狀態污染 |
+| Cloud Function proxy for Gemini | API key 不暴露前端，server side 驗證 + normalize |
+| AI 只生成候選卡，不自動排程 | 保留使用者拖拉排程的核心樂趣 |
 | 不做登入系統 | 小圈子協作用暱稱就夠，不增加摩擦 |
 | Cards 共用、Plans 分版本 | Clone 只複製排列不複製卡片，保持資料一致性 |
 | 候選池動態計算 | 避免 plan 之間互相污染，Firestore 也不用同步這個欄位 |
-| STATE_VERSION 自動重置 | 改了 state 結構就 bump 版本，避免舊資料格式衝突 |
 
 ## 📝 Seed Data
 

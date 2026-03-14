@@ -1093,3 +1093,75 @@ body {
     max-width: 260px;
   }
 }
+
+/* ===== Nickname Modal ===== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.nickname-modal {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.nickname-modal h2 {
+  margin: 0 0 20px;
+  font-size: 22px;
+  color: var(--text-primary);
+}
+
+.nickname-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.nickname-input:focus {
+  border-color: var(--accent);
+}
+
+.nickname-input::placeholder {
+  color: var(--text-muted);
+}
+
+.nickname-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 10px 0 20px;
+}
+
+.nickname-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.nickname-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}

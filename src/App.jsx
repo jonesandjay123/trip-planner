@@ -18,6 +18,8 @@ import CandidatePool from './components/CandidatePool';
 import Card from './components/Card';
 import CardModal from './components/CardModal';
 import PlanSelector from './components/PlanSelector';
+import NicknameModal from './components/NicknameModal';
+import { useNickname } from './hooks/useNickname';
 
 const STATE_VERSION = 7; // v7: day labels + cardOrder for pool sorting
 
@@ -88,6 +90,8 @@ function getPlanDayOrder(plan) {
 
 export default function App() {
   const [state, setState, resetState, loading] = useFirestore(createInitialState());
+  const { nickname, saveNickname, generateRandomName } = useNickname();
+  const [pendingRandomName] = useState(() => generateRandomName());
   const [activeId, setActiveId] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('trip-planner-dark');
@@ -387,7 +391,7 @@ export default function App() {
     const comment = {
       text: text.trim(),
       timestamp: new Date().toISOString(),
-      author: 'Jones',
+      author: nickname,
     };
     setState((prev) => ({
       ...prev,
@@ -493,6 +497,15 @@ export default function App() {
     () => (state.planOrder || []).map((id) => state.plans[id]).filter(Boolean),
     [state.plans, state.planOrder]
   );
+
+  if (!nickname) {
+    return (
+      <NicknameModal
+        randomName={pendingRandomName}
+        onConfirm={(name) => saveNickname(name)}
+      />
+    );
+  }
 
   if (loading) {
     return (

@@ -1300,14 +1300,20 @@ body {
 
 /* ===== AI Modal ===== */
 .ai-modal {
-  background: var(--bg-primary);
+  background: linear-gradient(135deg, #f0ecff 0%, #e8e0ff 100%);
+  border: 2px solid #9b7eea;
   border-radius: 16px;
   padding: 28px;
   max-width: 500px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
   position: relative;
   z-index: 2001;
+}
+
+[data-theme="dark"] .ai-modal {
+  background: linear-gradient(135deg, #2d2250 0%, #1e1540 100%);
+  border-color: #7c5cbf;
 }
 
 .ai-modal h2 {

@@ -211,6 +211,12 @@ body {
   border-radius: 12px;
 }
 
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header-date-row {
   display: flex;
   align-items: center;
@@ -733,6 +739,7 @@ body {
   overflow-x: auto;
   padding-bottom: 8px;
   min-height: 60px;
+  max-height: 220px;
   align-items: flex-start;
 }
 
@@ -749,6 +756,20 @@ body {
   min-width: 200px;
   max-width: 220px;
   flex-shrink: 0;
+  max-height: 200px;
+  overflow: hidden;
+  position: relative;
+}
+
+.pool-cards .card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: linear-gradient(transparent, var(--bg-primary));
+  pointer-events: none;
 }
 
 .pool-empty {

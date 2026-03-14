@@ -18,6 +18,7 @@ exports.generateTripCards = onRequest(
     {
       secrets: ["GEMINI_API_KEY"],
       cors: true,
+      enforceAppCheck: true, // Reject requests without valid token
     },
     async (req, res) => {
       try {

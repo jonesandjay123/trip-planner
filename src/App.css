@@ -1100,23 +1100,19 @@ body {
     width: 100%;
   }
 
-  /* Title + date all on one row */
+  /* Icon + title on same row */
   .header-title-row {
-    display: contents;
-  }
-
-  .header-date-row {
-    flex-wrap: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .header-icon {
-    font-size: 18px;
+    font-size: 22px;
   }
 
   .trip-name {
-    font-size: 14px;
-    border-bottom: none;
-    padding-bottom: 0;
+    font-size: 16px;
   }
 
   /* Date range + actions on same row */

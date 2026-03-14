@@ -4,8 +4,11 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 const functions = getFunctions();
 const generateCards = httpsCallable(functions, 'generateTripCards');
 
+const COUNT_OPTIONS = [1, 2, 3, 5, 8];
+
 export default function AiModal({ onClose, onCardsGenerated }) {
   const [prompt, setPrompt] = useState('');
+  const [count, setCount] = useState(2);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -17,7 +20,8 @@ export default function AiModal({ onClose, onCardsGenerated }) {
     setError('');
 
     try {
-      const result = await generateCards({ prompt: prompt.trim() });
+      const fullPrompt = `生成 ${count} 個關於「${prompt.trim()}」的行程小卡`;
+      const result = await generateCards({ prompt: fullPrompt });
       const { cards } = result.data;
 
       if (cards && cards.length > 0) {
@@ -35,11 +39,11 @@ export default function AiModal({ onClose, onCardsGenerated }) {
   }
 
   const suggestions = [
-    '推薦 5 個東京必吃美食景點',
-    '適合雨天的東京室內行程',
-    '東京近郊一日遊推薦（箱根/鎌倉/日光）',
-    '適合晚上逛的東京景點',
-    '東京親子友善景點推薦',
+    '東京必吃美食景點',
+    '適合雨天的室內行程',
+    '東京近郊一日遊（箱根/鎌倉/日光）',
+    '適合晚上逛的景點',
+    '東京購物聖地',
   ];
 
   return (
@@ -51,12 +55,29 @@ export default function AiModal({ onClose, onCardsGenerated }) {
         </p>
 
         <form onSubmit={handleGenerate}>
+          <div className="ai-count-row">
+            <span className="ai-count-label">生成</span>
+            <div className="ai-count-options">
+              {COUNT_OPTIONS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`ai-count-btn ${count === n ? 'active' : ''}`}
+                  onClick={() => setCount(n)}
+                  disabled={loading}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <span className="ai-count-label">個：</span>
+          </div>
           <textarea
             className="ai-prompt-input"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="例如：推薦 5 個東京必去的文化景點..."
-            rows={3}
+            placeholder="例如：東京有名的二郎系拉麵"
+            rows={2}
             disabled={loading}
             autoFocus
           />

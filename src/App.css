@@ -1328,6 +1328,58 @@ body {
   margin: 0 0 16px;
 }
 
+/* AI Count Selector */
+.ai-count-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ai-count-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ai-count-options {
+  display: flex;
+  gap: 4px;
+}
+
+.ai-count-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #b8a4e8;
+  background: white;
+  color: #5b3e9e;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+[data-theme="dark"] .ai-count-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #7c5cbf;
+  color: #c9b8f0;
+}
+
+.ai-count-btn.active {
+  background: #7c5cbf;
+  color: white;
+  border-color: #7c5cbf;
+}
+
+.ai-count-btn:hover:not(.active):not(:disabled) {
+  background: #e8e0ff;
+}
+
+[data-theme="dark"] .ai-count-btn:hover:not(.active):not(:disabled) {
+  background: rgba(124, 92, 191, 0.3);
+}
+
 .ai-prompt-input {
   width: 100%;
   padding: 12px 14px;

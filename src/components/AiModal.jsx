@@ -70,7 +70,7 @@ export default function AiModal({ onClose, onCardsGenerated }) {
                 </button>
               ))}
             </div>
-            <span className="ai-count-label">個：</span>
+            <span className="ai-count-label">個行程小卡：</span>
           </div>
           <textarea
             className="ai-prompt-input"

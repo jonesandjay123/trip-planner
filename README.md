@@ -183,9 +183,9 @@ firebase deploy --only hosting
 - [ ] 多 trip 支援（不再只有 `trips/main`）
 
 ### 🔮 Phase 4 — AI 整合
-- [ ] Gemini API 生成候選卡
+- [x] Cloud Functions / API proxy 保護金鑰 (已部署: `https://generatetripcards-hldkl4z5ya-uc.a.run.app`)
+- [ ] Gemini API 生成候選卡 (前端對接準備中)
 - [ ] AI 自動排程（根據地理位置/營業時間排出最順路線）
-- [ ] Cloud Functions / API proxy 保護金鑰
 
 ## 💡 設計決策
 

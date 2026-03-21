@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import seedCards from './data/cards.json';
-import { useFirestore } from './hooks/useFirestore';
+import { useLocalStorage } from './hooks/useLocalStorage';
 import Header from './components/Header';
 import DayColumn from './components/DayColumn';
 import CandidatePool from './components/CandidatePool';
@@ -19,7 +19,7 @@ import Card from './components/Card';
 import CardModal from './components/CardModal';
 import PlanSelector from './components/PlanSelector';
 import NicknameModal from './components/NicknameModal';
-import AiModal from './components/AiModal';
+// import AiModal from './components/AiModal'; // Requires Firebase
 import { useNickname } from './hooks/useNickname';
 
 const STATE_VERSION = 7; // v7: day labels + cardOrder for pool sorting
@@ -90,7 +90,9 @@ function getPlanDayOrder(plan) {
 // ==================== App ====================
 
 export default function App() {
-  const [state, setState, resetState, loading, setDragging] = useFirestore(createInitialState());
+  const [state, setState, resetState] = useLocalStorage(createInitialState());
+  const loading = false;
+  const setDragging = () => {}; // no-op for localStorage version
   const { nickname, saveNickname, generateRandomName } = useNickname();
   const [pendingRandomName] = useState(() => generateRandomName());
   const [activeId, setActiveId] = useState(null);
@@ -108,7 +110,7 @@ export default function App() {
   const [modalCard, setModalCard] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isNewCard, setIsNewCard] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
+  // const [aiModalOpen, setAiModalOpen] = useState(false); // Requires Firebase
 
   const cardMap = state.cards || {};
   const activePlan = useMemo(() => getActivePlan(state), [state]);
@@ -610,7 +612,7 @@ export default function App() {
           cardIds={unscheduledCardIds}
           cardMap={cardMap}
           onAddNew={openNewCardModal}
-          onAiGenerate={() => setAiModalOpen(true)}
+          // onAiGenerate={() => setAiModalOpen(true)} // Requires Firebase
           onEdit={openEditModal}
           onDeleteCard={handleDeleteCard}
           onAddComment={handleAddComment}
@@ -631,12 +633,7 @@ export default function App() {
         />
       )}
 
-      {aiModalOpen && (
-        <AiModal
-          onClose={() => setAiModalOpen(false)}
-          onCardsGenerated={handleAiCardsGenerated}
-        />
-      )}
+      {/* AI Modal removed — requires Firebase Cloud Functions */}
     </DndContext>
   );
 }

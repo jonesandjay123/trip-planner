@@ -134,9 +134,22 @@ npm run dev
 ### 部署
 
 ```bash
-# Firebase Hosting + Functions
+# Firebase Hosting
+npm install
 npm run build
-firebase deploy
+firebase deploy --only hosting
+```
+
+如果同時要部署 Firestore rules：
+
+```bash
+firebase deploy --only hosting,firestore:rules
+```
+
+如果本機尚未登入 Firebase CLI：
+
+```bash
+firebase login
 ```
 
 ### 本地設定
@@ -197,6 +210,7 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 - [x] 補 Google Auth 基礎骨架
 - [x] Header 右上角登入狀態區塊
 - [x] Firebase Hosting 作為主要部署入口
+- [x] Hosting 設定已對齊 repo，可直接 deploy
 - [x] Firestore rules 初步收緊為「登入才可寫」
 - [x] 前端改成未登入 view-only、已登入可編輯
 

@@ -41,7 +41,7 @@
 - 🧲 **拖曳期間暫停同步** — 抓著卡片移動時不寫雲端，放手後才同步最終結果
 - 🌐 **跨裝置存取** — 任何瀏覽器打開同一個網址都看到同一份資料
 - 🔐 **Google Auth 基礎骨架** — Header 右上角顯示登入狀態、登入後可編輯、未登入僅可查看
-- 🤖 **Jarvis 遠端寫入** — 已新增第一批受控 callable functions（新增/更新/刪除候選卡、追加留言），後續再逐步把高風險排程操作也收進 function 路徑
+- 🤖 **Jarvis 遠端寫入** — 已新增兩批受控 callable functions：第一批處理候選卡 / 留言，第二批處理高風險排程操作（排入時段、clone/reset plan、改 day label、改 trip 名稱）
 
 ### UI/UX
 - 🌙 **深色模式** — 自動偵測系統偏好 + 手動切換
@@ -214,6 +214,7 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 - [x] Firestore rules 初步收緊為「登入才可寫」
 - [x] 前端改成未登入 view-only、已登入可編輯
 - [x] Jarvis 第一批受控 callable CRUD（候選卡 / 留言）
+- [x] Jarvis 第二批排程 callable mutations（移動卡片 / clone-reset plan / rename）
 
 ### 🔜 Phase 4 — 地圖 + 進階功能
 - [ ] 🗺️ **地圖整合** — 卡片標記經緯度，在地圖上顯示景點位置

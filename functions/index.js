@@ -102,6 +102,52 @@ function withAuditFields(card, actor, action) {
   };
 }
 
+function setNestedValue(target, path, value) {
+  const segments = path.split(".");
+  let cursor = target;
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const key = segments[i];
+    if (!cursor[key] || typeof cursor[key] !== "object") {
+      cursor[key] = {};
+    }
+    cursor = cursor[key];
+  }
+  cursor[segments[segments.length - 1]] = value;
+}
+
+function buildMergeObject(entries) {
+  const result = {};
+  for (const [path, value] of entries) {
+    setNestedValue(result, path, value);
+  }
+  return result;
+}
+
+function clonePlanObject(plan, nextId, nextName) {
+  return {
+    id: nextId,
+    name: nextName,
+    dayOrder: Array.isArray(plan.dayOrder) ? [...plan.dayOrder] : [],
+    days: JSON.parse(JSON.stringify(plan.days || {})),
+    dayLabels: {...(plan.dayLabels || {})},
+  };
+}
+
+function removeCardFromPlan(plan, cardId) {
+  const nextDays = {};
+  for (const [date, zones] of Object.entries(plan.days || {})) {
+    const nextZones = {};
+    for (const [zone, ids] of Object.entries(zones || {})) {
+      nextZones[zone] = Array.isArray(ids) ? ids.filter((id) => id !== cardId) : [];
+    }
+    nextDays[date] = nextZones;
+  }
+  return {
+    ...plan,
+    days: nextDays,
+  };
+}
+
 async function appendActivityLog(entry) {
   await tripRef().set({
     activityLog: FieldValue.arrayUnion({
@@ -393,4 +439,157 @@ exports.jarvisAppendCommentToCard = onCall(async (request) => {
 
   await appendActivityLog({action: "append-comment", cardId, actorEmail: actor.email});
   return {ok: true, cardId, comment};
+});
+
+exports.jarvisMoveCardToSlot = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const cardId = String(request.data?.cardId || "").trim();
+  const planId = String(request.data?.planId || "default").trim() || "default";
+  const date = String(request.data?.date || "").trim();
+  const zone = String(request.data?.zone || "").trim();
+  const indexInput = request.data?.index;
+
+  if (!cardId || !date || !VALID_ZONES.includes(zone)) {
+    throw new HttpsError("invalid-argument", "cardId, date, and valid zone are required");
+  }
+
+  await db.runTransaction(async (tx) => {
+    const ref = tripRef();
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Trip document not found");
+
+    const trip = snap.data();
+    if (!trip.cards?.[cardId]) throw new HttpsError("not-found", "Card not found");
+    const plan = trip.plans?.[planId];
+    if (!plan) throw new HttpsError("not-found", "Plan not found");
+    if (!plan.days?.[date]) throw new HttpsError("not-found", "Date not found in plan");
+
+    const cleanedPlan = removeCardFromPlan(plan, cardId);
+    const nextZones = {...(cleanedPlan.days[date] || {})};
+    const targetItems = Array.isArray(nextZones[zone]) ? [...nextZones[zone]] : [];
+    const rawIndex = Number.isInteger(indexInput) ? indexInput : targetItems.length;
+    const boundedIndex = Math.max(0, Math.min(rawIndex, targetItems.length));
+    targetItems.splice(boundedIndex, 0, cardId);
+    nextZones[zone] = targetItems;
+
+    tx.set(ref, buildMergeObject([
+      [`plans.${planId}`, {
+        ...cleanedPlan,
+        days: {
+          ...cleanedPlan.days,
+          [date]: nextZones,
+        },
+      }],
+      [`cards.${cardId}`, withAuditFields(trip.cards[cardId], actor, "jarvisMoveCardToSlot")],
+    ]), {merge: true});
+  });
+
+  await appendActivityLog({action: "move-card", cardId, planId, date, zone, actorEmail: actor.email});
+  return {ok: true, cardId, planId, date, zone};
+});
+
+exports.jarvisClonePlan = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const sourcePlanId = String(request.data?.sourcePlanId || "default").trim() || "default";
+  const name = String(request.data?.name || "").trim();
+
+  const trip = await getTripStateOrThrow();
+  const sourcePlan = trip.plans?.[sourcePlanId];
+  if (!sourcePlan) throw new HttpsError("not-found", "Source plan not found");
+
+  const nextId = `plan_${Date.now()}`;
+  const nextName = name || `${sourcePlan.name || "Plan"} (副本)`;
+  const cloned = clonePlanObject(sourcePlan, nextId, nextName);
+
+  await tripRef().set({
+    plans: {
+      ...trip.plans,
+      [nextId]: cloned,
+    },
+    planOrder: [...(trip.planOrder || []), nextId],
+    tripMeta: {
+      ...(trip.tripMeta || {}),
+      activePlanId: nextId,
+      updatedAt: nowIso(),
+      updatedByEmail: actor.email,
+    },
+  }, {merge: true});
+
+  await appendActivityLog({action: "clone-plan", sourcePlanId, newPlanId: nextId, actorEmail: actor.email});
+  return {ok: true, planId: nextId, name: nextName};
+});
+
+exports.jarvisResetPlan = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const planId = String(request.data?.planId || "default").trim() || "default";
+
+  const trip = await getTripStateOrThrow();
+  const plan = trip.plans?.[planId];
+  if (!plan) throw new HttpsError("not-found", "Plan not found");
+
+  const emptyDays = {};
+  for (const date of Object.keys(plan.days || {})) {
+    emptyDays[date] = {
+      morning: [],
+      afternoon: [],
+      evening: [],
+      flexible: [],
+    };
+  }
+
+  await tripRef().set(buildMergeObject([
+    [`plans.${planId}`, {
+      ...plan,
+      days: emptyDays,
+      dayLabels: {},
+      dayOrder: Array.isArray(plan.dayOrder) ? [...plan.dayOrder] : Object.keys(emptyDays).sort(),
+    }],
+  ]), {merge: true});
+
+  await appendActivityLog({action: "reset-plan", planId, actorEmail: actor.email});
+  return {ok: true, planId};
+});
+
+exports.jarvisRenameDayLabel = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const planId = String(request.data?.planId || "default").trim() || "default";
+  const date = String(request.data?.date || "").trim();
+  const label = String(request.data?.label || "").trim();
+
+  if (!date) {
+    throw new HttpsError("invalid-argument", "date is required");
+  }
+
+  const trip = await getTripStateOrThrow();
+  const plan = trip.plans?.[planId];
+  if (!plan) throw new HttpsError("not-found", "Plan not found");
+  if (!plan.days?.[date]) throw new HttpsError("not-found", "Date not found in plan");
+
+  await tripRef().set(buildMergeObject([
+    [`plans.${planId}.dayLabels.${date}`, label],
+  ]), {merge: true});
+
+  await appendActivityLog({action: "rename-day-label", planId, date, label, actorEmail: actor.email});
+  return {ok: true, planId, date, label};
+});
+
+exports.jarvisRenameTrip = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const title = String(request.data?.title || "").trim();
+
+  if (!title) {
+    throw new HttpsError("invalid-argument", "title is required");
+  }
+
+  await tripRef().set({
+    tripMeta: {
+      title,
+      updatedAt: nowIso(),
+      updatedByEmail: actor.email,
+      updatedByUid: actor.uid,
+    },
+  }, {merge: true});
+
+  await appendActivityLog({action: "rename-trip", title, actorEmail: actor.email});
+  return {ok: true, title};
 });

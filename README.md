@@ -40,7 +40,7 @@
 - 🕒 **Debounced 寫入** — 避免拖曳過程中的中間狀態頻繁寫入 Firestore
 - 🧲 **拖曳期間暫停同步** — 抓著卡片移動時不寫雲端，放手後才同步最終結果
 - 🌐 **跨裝置存取** — 任何瀏覽器打開同一個網址都看到同一份資料
-- 🔐 **Google Auth 基礎骨架** — Header 右上角顯示登入狀態、Owner mode / View only mode
+- 🔐 **Google Auth 基礎骨架** — Header 右上角顯示登入狀態、登入後可編輯、未登入僅可查看
 - 🤖 **Jarvis 遠端寫入** — 之後將從完全開放 Firestore 過渡到更安全的受控寫入模式
 
 ### UI/UX
@@ -196,15 +196,16 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 ### ✅ Phase 3.5 — 平台基礎對齊（進行中）
 - [x] 補 Google Auth 基礎骨架
 - [x] Header 右上角登入狀態區塊
-- [ ] Firebase Hosting 作為主要部署入口
-- [ ] Firestore rules 收緊 + owner/viewer 對齊
+- [x] Firebase Hosting 作為主要部署入口
+- [x] Firestore rules 初步收緊為「登入才可寫」
+- [x] 前端改成未登入 view-only、已登入可編輯
 
 ### 🔜 Phase 4 — 地圖 + 進階功能
 - [ ] 🗺️ **地圖整合** — 卡片標記經緯度，在地圖上顯示景點位置
 - [ ] 📍 **每日路線視覺化** — 按日期在地圖上畫出當天的行程路線
 - [ ] 🧭 **AI 排程建議** — 根據地理位置 + 營業時間自動排出最順路線
 - [ ] 🔗 分享連結（`/trip/{tripId}` 支援多趟旅行）
-- [ ] 🔒 Firestore rules 收緊 + 權限分流
+- [ ] 🔒 Firestore rules 進一步收緊 + 權限分流
 - [ ] 🌍 多 trip 支援
 
 ## 💡 設計決策

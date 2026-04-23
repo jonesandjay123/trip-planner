@@ -124,6 +124,7 @@ export default function App() {
   }, []);
 
   const isOwner = Boolean(user?.email && user.email.toLowerCase() === ownerEmail.toLowerCase());
+  const canEdit = Boolean(user);
 
   const cardMap = state.cards || {};
   const activePlan = useMemo(() => getActivePlan(state), [state]);
@@ -155,7 +156,14 @@ export default function App() {
     }));
   }
 
+  function requireEditable() {
+    if (canEdit) return true;
+    window.alert('請先用 Google 帳號登入後再編輯行程。');
+    return false;
+  }
+
   function handleClonePlan() {
+    if (!requireEditable()) return;
     setState((prev) => {
       const source = getActivePlan(prev);
       const newId = `plan_${Date.now()}`;
@@ -176,6 +184,7 @@ export default function App() {
   }
 
   function handleRenamePlan(planId, newName) {
+    if (!requireEditable()) return;
     if (!newName.trim()) return;
     setState((prev) => ({
       ...prev,
@@ -187,6 +196,7 @@ export default function App() {
   }
 
   function handleDeletePlan(planId) {
+    if (!requireEditable()) return;
     setState((prev) => {
       if (prev.planOrder.length <= 1) return prev;
       const newPlanOrder = prev.planOrder.filter((id) => id !== planId);
@@ -202,6 +212,7 @@ export default function App() {
   }
 
   function handleResetPlan() {
+    if (!requireEditable()) return;
     if (!window.confirm('確定要清空當前方案的所有排程嗎？卡片會回到候選區。')) return;
     setState((prev) => {
       const plan = getActivePlan(prev);
@@ -280,11 +291,13 @@ export default function App() {
   );
 
   function handleDragStart(event) {
+    if (!canEdit) return;
     setActiveId(event.active.id);
     setDragging(true);
   }
 
   function handleDragOver(event) {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -319,6 +332,11 @@ export default function App() {
   }
 
   function handleDragEnd(event) {
+    if (!canEdit) {
+      setActiveId(null);
+      setDragging(false);
+      return;
+    }
     const { active, over } = event;
     setActiveId(null);
     setDragging(false);
@@ -373,12 +391,14 @@ export default function App() {
   // ==================== Card / Modal / Comment ====================
 
   function openEditModal(card) {
+    if (!requireEditable()) return;
     setModalCard(card);
     setIsNewCard(false);
     setModalOpen(true);
   }
 
   function openNewCardModal() {
+    if (!requireEditable()) return;
     setModalCard(null);
     setIsNewCard(true);
     setModalOpen(true);
@@ -391,6 +411,7 @@ export default function App() {
   }
 
   function handleModalSave(updatedCard, isNew) {
+    if (!requireEditable()) return;
     setState((prev) => {
       const newState = {
         ...prev,
@@ -406,6 +427,7 @@ export default function App() {
   }
 
   function handleAddComment(cardId, text) {
+    if (!requireEditable()) return;
     if (!text.trim()) return;
     const comment = {
       text: text.trim(),
@@ -425,6 +447,7 @@ export default function App() {
   }
 
   function handleEditComment(cardId, commentIdx, newText) {
+    if (!requireEditable()) return;
     setState((prev) => {
       const card = prev.cards[cardId];
       if (!card) return prev;
@@ -438,6 +461,7 @@ export default function App() {
   }
 
   function handleAiCardsGenerated(aiCards) {
+    if (!requireEditable()) return;
     setState((prev) => {
       const newCards = { ...prev.cards };
       const newOrder = [...(prev.cardOrder || [])];
@@ -451,6 +475,7 @@ export default function App() {
   }
 
   function handleDeleteCard(cardId) {
+    if (!requireEditable()) return;
     setState((prev) => {
       const { [cardId]: removed, ...remainingCards } = prev.cards;
       // Remove from cardOrder
@@ -473,6 +498,7 @@ export default function App() {
   }
 
   function handleDeleteComment(cardId, commentIdx) {
+    if (!requireEditable()) return;
     setState((prev) => {
       const card = prev.cards[cardId];
       if (!card) return prev;
@@ -487,6 +513,7 @@ export default function App() {
   // ==================== Trip-level actions ====================
 
   function handleTripNameChange(name) {
+    if (!requireEditable()) return;
     setState((prev) => ({
       ...prev,
       tripMeta: { ...prev.tripMeta, title: name },
@@ -518,12 +545,14 @@ export default function App() {
   }
 
   function handleReset() {
+    if (!requireEditable()) return;
     if (window.confirm('確定要重置所有資料嗎？')) {
       resetState(createInitialState());
     }
   }
 
   function handleDayLabelChange(date, label) {
+    if (!requireEditable()) return;
     updateActivePlan((plan) => ({
       ...plan,
       dayLabels: { ...(plan.dayLabels || {}), [date]: label },
@@ -531,6 +560,7 @@ export default function App() {
   }
 
   function handleSwapDay(date, direction) {
+    if (!requireEditable()) return;
     updateActivePlan((plan) => {
       const order = getPlanDayOrder(plan);
       const idx = order.indexOf(date);

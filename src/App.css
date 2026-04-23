@@ -157,30 +157,35 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 12px 24px;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   position: sticky;
   top: 0;
   z-index: 100;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
-.header-left {
+.header::-webkit-scrollbar {
+  display: none;
+}
+
+.header-main {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  flex: 1;
 }
 
 .header-icon {
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .trip-name {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   cursor: pointer;
   border-bottom: 2px dashed rgba(255, 255, 255, 0.5);
@@ -192,7 +197,7 @@ body {
 }
 
 .trip-name-input {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid white;
@@ -200,7 +205,7 @@ body {
   color: white;
   padding: 2px 8px;
   outline: none;
-  min-width: 200px;
+  min-width: 180px;
 }
 
 .date-range {
@@ -211,40 +216,21 @@ body {
   border-radius: 12px;
 }
 
-.header-title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.header-date-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .header-actions {
   display: flex;
-  gap: 8px;
-}
-
-.header-bottom-row {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
+  gap: 8px;
 }
 
 .header-auth-status {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
   padding: 6px 10px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.16);
   color: white;
+  flex-shrink: 0;
 }
 
 .header-auth-status.compact {
@@ -333,7 +319,6 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: 12px;
 }
 
 .plan-selector-label {

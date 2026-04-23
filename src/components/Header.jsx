@@ -52,61 +52,59 @@ export default function Header({
 
   return (
     <header className="header">
-      <div className="header-left">
-        <div className="header-title-row">
-          <span className="header-icon">✈️</span>
-          {editing ? (
-            <input
-              className="trip-name-input"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
-              autoFocus
-            />
-          ) : (
-            <h1 className="trip-name" onDoubleClick={handleDoubleClick} title="雙擊編輯">
-              {tripName}
-            </h1>
-          )}
+      <div className="header-main">
+        <span className="header-icon">✈️</span>
+        {editing ? (
+          <input
+            className="trip-name-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+          />
+        ) : (
+          <h1 className="trip-name" onDoubleClick={handleDoubleClick} title="雙擊編輯">
+            {tripName}
+          </h1>
+        )}
+        
+        <span className="date-range">
+          {formatDate(startDate)} → {formatDate(endDate)}
+        </span>
+
+        <div className="header-actions">
+          <button className="theme-toggle" onClick={onToggleDark} title={darkMode ? '切換淺色模式' : '切換深色模式'}>
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+          <button className="btn btn-export" onClick={onExport}>
+            📋 匯出
+          </button>
+          <button className="btn btn-reset" onClick={onReset}>
+            🔄 重置
+          </button>
         </div>
-        <div className="header-date-row">
-          <span className="date-range">
-            {formatDate(startDate)} → {formatDate(endDate)}
-          </span>
-          <div className="header-actions">
-            <button className="theme-toggle" onClick={onToggleDark} title={darkMode ? '切換淺色模式' : '切換深色模式'}>
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-            <button className="btn btn-export" onClick={onExport}>
-              📋 匯出
-            </button>
-            <button className="btn btn-reset" onClick={onReset}>
-              🔄 重置
-            </button>
-          </div>
-        </div>
-        <div className="header-bottom-row">
-          {planSelector}
-          <div className="header-auth-status compact">
-            {authLoading ? (
-              <>
-                <span className="auth-mode viewer">Checking</span>
-              </>
-            ) : user ? (
-              <>
-                <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner' : 'Viewer'}</span>
-                <span className="auth-email compact" title={user.email || 'unknown user'}>{user.email || 'unknown user'}</span>
-                <button className="btn btn-auth compact" onClick={onLogout}>登出</button>
-              </>
-            ) : (
-              <>
-                <span className="auth-mode viewer">Viewer</span>
-                <button className="btn btn-auth compact" onClick={onLogin}>登入</button>
-              </>
-            )}
-          </div>
-        </div>
+
+        {planSelector}
+      </div>
+
+      <div className="header-auth-status compact">
+        {authLoading ? (
+          <>
+            <span className="auth-mode viewer">Checking</span>
+          </>
+        ) : user ? (
+          <>
+            <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner' : 'Viewer'}</span>
+            <span className="auth-email compact" title={user.email || 'unknown user'}>{user.email || 'unknown user'}</span>
+            <button className="btn btn-auth compact" onClick={onLogout}>登出</button>
+          </>
+        ) : (
+          <>
+            <span className="auth-mode viewer">Viewer</span>
+            <button className="btn btn-auth compact" onClick={onLogin}>登入</button>
+          </>
+        )}
       </div>
     </header>
   );

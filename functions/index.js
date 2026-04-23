@@ -543,6 +543,42 @@ exports.jarvisClonePlan = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (reque
   return {ok: true, planId: nextId, name: nextName};
 });
 
+exports.jarvisDeletePlan = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  const actor = assertJarvisCaller(request);
+  const planId = String(request.data?.planId || "").trim();
+
+  if (!planId) {
+    throw new HttpsError("invalid-argument", "planId is required");
+  }
+
+  const trip = await getTripStateOrThrow();
+  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : [];
+  if (planOrder.length <= 1) {
+    throw new HttpsError("failed-precondition", "Cannot delete the only remaining plan");
+  }
+  if (!trip.plans?.[planId]) {
+    throw new HttpsError("not-found", "Plan not found");
+  }
+
+  const remainingOrder = planOrder.filter((id) => id !== planId);
+  const nextActive = trip.tripMeta?.activePlanId === planId ? remainingOrder[0] : trip.tripMeta?.activePlanId;
+
+  await tripRef().set({
+    [`plans.${planId}`]: FieldValue.delete(),
+    planOrder: remainingOrder,
+    tripMeta: {
+      ...(trip.tripMeta || {}),
+      activePlanId: nextActive,
+      updatedAt: nowIso(),
+      updatedByEmail: actor.email,
+      updatedByUid: actor.uid,
+    },
+  }, {merge: true});
+
+  await appendActivityLog({action: "delete-plan", planId, actorEmail: actor.email});
+  return {ok: true, planId, activePlanId: nextActive};
+});
+
 exports.jarvisResetPlan = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const planId = String(request.data?.planId || "default").trim() || "default";

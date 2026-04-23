@@ -41,7 +41,7 @@
 - 🧲 **拖曳期間暫停同步** — 抓著卡片移動時不寫雲端，放手後才同步最終結果
 - 🌐 **跨裝置存取** — 任何瀏覽器打開同一個網址都看到同一份資料
 - 🔐 **Google Auth 基礎骨架** — Header 右上角顯示登入狀態、登入後可編輯、未登入僅可查看
-- 🤖 **Jarvis 遠端寫入** — 已新增兩批受控 callable functions：第一批處理候選卡 / 留言，第二批處理高風險排程操作（排入時段、clone/reset plan、改 day label、改 trip 名稱）
+- 🤖 **Jarvis 遠端寫入** — 已新增兩批受控 callable functions：第一批處理候選卡 / 留言，第二批處理高風險排程操作（排入時段、clone/delete/reset plan、改 day label、改 trip 名稱）
 
 ### UI/UX
 - 🌙 **深色模式** — 自動偵測系統偏好 + 手動切換

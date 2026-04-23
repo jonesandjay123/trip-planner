@@ -7,6 +7,7 @@ const jarvisDeleteCandidateCardCall = httpsCallable(functions, 'jarvisDeleteCand
 const jarvisAppendCommentToCardCall = httpsCallable(functions, 'jarvisAppendCommentToCard')
 const jarvisMoveCardToSlotCall = httpsCallable(functions, 'jarvisMoveCardToSlot')
 const jarvisClonePlanCall = httpsCallable(functions, 'jarvisClonePlan')
+const jarvisDeletePlanCall = httpsCallable(functions, 'jarvisDeletePlan')
 const jarvisResetPlanCall = httpsCallable(functions, 'jarvisResetPlan')
 const jarvisRenameDayLabelCall = httpsCallable(functions, 'jarvisRenameDayLabel')
 const jarvisRenameTripCall = httpsCallable(functions, 'jarvisRenameTrip')
@@ -38,6 +39,11 @@ export async function jarvisMoveCardToSlot(cardId, planId, date, zone, index) {
 
 export async function jarvisClonePlan(sourcePlanId, name) {
   const result = await jarvisClonePlanCall({ sourcePlanId, name })
+  return result.data
+}
+
+export async function jarvisDeletePlan(planId) {
+  const result = await jarvisDeletePlanCall({ planId })
   return result.data
 }
 

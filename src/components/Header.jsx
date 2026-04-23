@@ -88,23 +88,21 @@ export default function Header({
         </div>
         <div className="header-bottom-row">
           {planSelector}
-          <div className="header-auth-status">
+          <div className="header-auth-status compact">
             {authLoading ? (
               <>
-                <span className="auth-email">正在確認登入狀態...</span>
                 <span className="auth-mode viewer">Checking</span>
               </>
             ) : user ? (
               <>
-                <span className="auth-email">{user.email || 'unknown user'}</span>
-                <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner mode' : 'View only mode'}</span>
-                <button className="btn btn-auth" onClick={onLogout}>登出</button>
+                <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner' : 'Viewer'}</span>
+                <span className="auth-email compact" title={user.email || 'unknown user'}>{user.email || 'unknown user'}</span>
+                <button className="btn btn-auth compact" onClick={onLogout}>登出</button>
               </>
             ) : (
               <>
-                <span className="auth-email">未登入</span>
-                <span className="auth-mode viewer">View only mode</span>
-                <button className="btn btn-auth" onClick={onLogin}>Google 登入</button>
+                <span className="auth-mode viewer">Viewer</span>
+                <button className="btn btn-auth compact" onClick={onLogin}>登入</button>
               </>
             )}
           </div>

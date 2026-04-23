@@ -653,3 +653,99 @@ exports.jarvisRenameTrip = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (requ
   await appendActivityLog({action: "rename-trip", title, actorEmail: actor.email});
   return {ok: true, title};
 });
+
+exports.jarvisInspectTrip = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  assertJarvisCaller(request);
+  const trip = await getTripStateOrThrow();
+  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : [];
+  const activePlanId = trip.tripMeta?.activePlanId || planOrder[0] || null;
+  const plans = planOrder.map((planId) => {
+    const plan = trip.plans?.[planId] || {};
+    return {
+      id: planId,
+      name: plan.name || planId,
+      isActive: planId === activePlanId,
+      dayOrder: Array.isArray(plan.dayOrder) ? plan.dayOrder : [],
+      dayLabels: plan.dayLabels || {},
+      scheduledCardCount: Object.values(plan.days || {}).reduce((sum, zones) => {
+        return sum + Object.values(zones || {}).reduce((inner, ids) => inner + (Array.isArray(ids) ? ids.length : 0), 0);
+      }, 0),
+    };
+  });
+
+  return {
+    ok: true,
+    tripMeta: trip.tripMeta || {},
+    activePlanId,
+    planCount: plans.length,
+    cardCount: Object.keys(trip.cards || {}).length,
+    plans,
+  };
+});
+
+exports.jarvisInspectDay = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  assertJarvisCaller(request);
+  const planId = String(request.data?.planId || "default").trim() || "default";
+  const date = String(request.data?.date || "").trim();
+  if (!date) {
+    throw new HttpsError("invalid-argument", "date is required");
+  }
+
+  const trip = await getTripStateOrThrow();
+  const plan = trip.plans?.[planId];
+  if (!plan) throw new HttpsError("not-found", "Plan not found");
+  const day = plan.days?.[date];
+  if (!day) throw new HttpsError("not-found", "Day not found");
+
+  const zoneDetails = {};
+  for (const zone of VALID_ZONES) {
+    const ids = Array.isArray(day[zone]) ? day[zone] : [];
+    zoneDetails[zone] = ids.map((id) => {
+      const card = trip.cards?.[id] || {id, title: id};
+      return {
+        id,
+        title: card.title || id,
+        subtitle: card.subtitle || "",
+        area: card.area || "",
+        duration: card.duration || "",
+      };
+    });
+  }
+
+  return {
+    ok: true,
+    planId,
+    date,
+    label: plan.dayLabels?.[date] || "",
+    zones: zoneDetails,
+  };
+});
+
+exports.jarvisInspectCard = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  assertJarvisCaller(request);
+  const cardId = String(request.data?.cardId || "").trim();
+  if (!cardId) {
+    throw new HttpsError("invalid-argument", "cardId is required");
+  }
+
+  const trip = await getTripStateOrThrow();
+  const card = trip.cards?.[cardId];
+  if (!card) throw new HttpsError("not-found", "Card not found");
+
+  const placements = [];
+  for (const [planId, plan] of Object.entries(trip.plans || {})) {
+    for (const [date, zones] of Object.entries(plan.days || {})) {
+      for (const [zone, ids] of Object.entries(zones || {})) {
+        if (Array.isArray(ids) && ids.includes(cardId)) {
+          placements.push({planId, planName: plan.name || planId, date, zone});
+        }
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    card,
+    placements,
+  };
+});

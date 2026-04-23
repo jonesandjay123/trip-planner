@@ -1,8 +1,115 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
+const admin = require("firebase-admin");
 
 setGlobalOptions({maxInstances: 10});
+
+admin.initializeApp();
+const db = admin.firestore();
+const FieldValue = admin.firestore.FieldValue;
+
+const TRIP_DOC_PATH = "trips/main";
+const VALID_ZONES = ["morning", "afternoon", "evening", "flexible"];
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function tripRef() {
+  return db.doc(TRIP_DOC_PATH);
+}
+
+function assertJarvisCaller(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+
+  const email = request.auth.token.email;
+  if (typeof email !== "string" || !email.trim()) {
+    throw new HttpsError("permission-denied", "Caller email is required");
+  }
+
+  return {
+    uid: request.auth.uid,
+    email: email.toLowerCase(),
+    displayName: request.auth.token.name || email,
+  };
+}
+
+function normalizeTags(tags) {
+  if (!Array.isArray(tags)) return [];
+  return tags
+      .map((tag) => String(tag || "").trim())
+      .filter(Boolean)
+      .slice(0, 8);
+}
+
+function normalizeCardInput(input, {existingId, preserveComments = true} = {}) {
+  if (!input || typeof input !== "object") {
+    throw new HttpsError("invalid-argument", "Card payload is required");
+  }
+
+  const title = String(input.title || "").trim();
+  if (!title) {
+    throw new HttpsError("invalid-argument", "Card title is required");
+  }
+
+  const zone = VALID_ZONES.includes(input.zone) ? input.zone : "flexible";
+  const cardId = existingId || String(input.id || "").trim() || `jarvis_${Date.now()}`;
+
+  const normalized = {
+    id: cardId,
+    title,
+    subtitle: String(input.subtitle || "").trim(),
+    zone,
+    duration: String(input.duration || "1-2 hr").trim(),
+    area: String(input.area || "").trim(),
+    note: String(input.note || "").trim(),
+    tags: normalizeTags(input.tags),
+    source: String(input.source || "jarvis").trim() || "jarvis",
+  };
+
+  if (preserveComments) {
+    normalized.comments = Array.isArray(input.comments) ? input.comments : [];
+  }
+
+  return normalized;
+}
+
+async function getTripStateOrThrow() {
+  const snap = await tripRef().get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Trip document not found");
+  }
+
+  const data = snap.data();
+  if (!data || typeof data !== "object") {
+    throw new HttpsError("internal", "Trip document is invalid");
+  }
+
+  return data;
+}
+
+function withAuditFields(card, actor, action) {
+  return {
+    ...card,
+    updatedAt: nowIso(),
+    updatedByUid: actor.uid,
+    updatedByEmail: actor.email,
+    updatedByName: actor.displayName,
+    updatedVia: action,
+  };
+}
+
+async function appendActivityLog(entry) {
+  await tripRef().set({
+    activityLog: FieldValue.arrayUnion({
+      ...entry,
+      loggedAt: nowIso(),
+    }),
+  }, {merge: true});
+}
 
 exports.generateTripCards = onCall(
     {
@@ -91,7 +198,6 @@ Rules:
           throw new HttpsError("internal", "Invalid Gemini response");
         }
 
-        // Clean markdown fences if present
         let cleanText = text.trim();
         if (cleanText.startsWith("```")) {
           cleanText = cleanText
@@ -107,17 +213,15 @@ Rules:
           throw new HttpsError("internal", "Failed to parse AI response");
         }
 
-        // Validate and normalize cards
         if (!parsed.cards || !Array.isArray(parsed.cards)) {
           throw new HttpsError("internal", "Invalid cards format");
         }
 
-        const validZones = ["morning", "afternoon", "evening", "flexible"];
         const cards = parsed.cards.map((card) => ({
           id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           title: card.title || "未命名景點",
           subtitle: card.subtitle || "",
-          zone: validZones.includes(card.zone) ? card.zone : "flexible",
+          zone: VALID_ZONES.includes(card.zone) ? card.zone : "flexible",
           duration: card.duration || "1-2hr",
           area: card.area || "",
           note: card.note || "",
@@ -134,3 +238,159 @@ Rules:
       }
     },
 );
+
+exports.jarvisAddCandidateCard = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const nextCard = normalizeCardInput(request.data?.card);
+
+  await db.runTransaction(async (tx) => {
+    const ref = tripRef();
+    const snap = await tx.get(ref);
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Trip document not found");
+    }
+
+    const trip = snap.data();
+    const cards = trip.cards || {};
+    const cardOrder = Array.isArray(trip.cardOrder) ? trip.cardOrder : [];
+    const auditedCard = withAuditFields({...nextCard, comments: []}, actor, "jarvisAddCandidateCard");
+
+    tx.set(ref, {
+      cards: {
+        ...cards,
+        [auditedCard.id]: auditedCard,
+      },
+      cardOrder: cardOrder.includes(auditedCard.id) ? cardOrder : [auditedCard.id, ...cardOrder],
+    }, {merge: true});
+  });
+
+  await appendActivityLog({action: "add-card", cardId: nextCard.id, actorEmail: actor.email});
+  return {ok: true, cardId: nextCard.id};
+});
+
+exports.jarvisUpdateCandidateCard = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const cardId = String(request.data?.cardId || "").trim();
+  const patch = request.data?.patch;
+
+  if (!cardId) {
+    throw new HttpsError("invalid-argument", "cardId is required");
+  }
+
+  const trip = await getTripStateOrThrow();
+  const existing = trip.cards?.[cardId];
+  if (!existing) {
+    throw new HttpsError("not-found", "Card not found");
+  }
+
+  const mergedCard = normalizeCardInput(
+      {
+        ...existing,
+        ...patch,
+        id: cardId,
+        comments: existing.comments || [],
+      },
+      {existingId: cardId, preserveComments: true},
+  );
+
+  const auditedCard = withAuditFields(mergedCard, actor, "jarvisUpdateCandidateCard");
+
+  await tripRef().set({
+    cards: {
+      ...trip.cards,
+      [cardId]: auditedCard,
+    },
+  }, {merge: true});
+
+  await appendActivityLog({action: "update-card", cardId, actorEmail: actor.email});
+  return {ok: true, cardId};
+});
+
+exports.jarvisDeleteCandidateCard = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const cardId = String(request.data?.cardId || "").trim();
+
+  if (!cardId) {
+    throw new HttpsError("invalid-argument", "cardId is required");
+  }
+
+  await db.runTransaction(async (tx) => {
+    const ref = tripRef();
+    const snap = await tx.get(ref);
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Trip document not found");
+    }
+
+    const trip = snap.data();
+    if (!trip.cards || !trip.cards[cardId]) {
+      throw new HttpsError("not-found", "Card not found");
+    }
+
+    const nextCards = {...trip.cards};
+    delete nextCards[cardId];
+
+    const nextPlans = {};
+    for (const [planId, plan] of Object.entries(trip.plans || {})) {
+      const nextDays = {};
+      for (const [date, zones] of Object.entries(plan.days || {})) {
+        const nextZones = {};
+        for (const [zone, ids] of Object.entries(zones || {})) {
+          nextZones[zone] = Array.isArray(ids) ? ids.filter((id) => id !== cardId) : [];
+        }
+        nextDays[date] = nextZones;
+      }
+      nextPlans[planId] = {...plan, days: nextDays};
+    }
+
+    const nextCardOrder = Array.isArray(trip.cardOrder) ? trip.cardOrder.filter((id) => id !== cardId) : [];
+
+    tx.set(ref, {
+      cards: nextCards,
+      plans: nextPlans,
+      cardOrder: nextCardOrder,
+    }, {merge: true});
+  });
+
+  await appendActivityLog({action: "delete-card", cardId, actorEmail: actor.email});
+  return {ok: true, cardId};
+});
+
+exports.jarvisAppendCommentToCard = onCall(async (request) => {
+  const actor = assertJarvisCaller(request);
+  const cardId = String(request.data?.cardId || "").trim();
+  const text = String(request.data?.text || "").trim();
+
+  if (!cardId || !text) {
+    throw new HttpsError("invalid-argument", "cardId and text are required");
+  }
+
+  const trip = await getTripStateOrThrow();
+  const existing = trip.cards?.[cardId];
+  if (!existing) {
+    throw new HttpsError("not-found", "Card not found");
+  }
+
+  const comment = {
+    text,
+    timestamp: nowIso(),
+    author: actor.displayName,
+    authorEmail: actor.email,
+    authorUid: actor.uid,
+    source: "jarvis-function",
+  };
+
+  const updatedCard = withAuditFields({
+    ...existing,
+    comments: [...(existing.comments || []), comment],
+  }, actor, "jarvisAppendCommentToCard");
+
+  await tripRef().set({
+    cards: {
+      ...trip.cards,
+      [cardId]: updatedCard,
+    },
+  }, {merge: true});
+
+  await appendActivityLog({action: "append-comment", cardId, actorEmail: actor.email});
+  return {ok: true, cardId, comment};
+});

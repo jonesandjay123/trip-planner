@@ -41,7 +41,7 @@
 - 🧲 **拖曳期間暫停同步** — 抓著卡片移動時不寫雲端，放手後才同步最終結果
 - 🌐 **跨裝置存取** — 任何瀏覽器打開同一個網址都看到同一份資料
 - 🔐 **Google Auth 基礎骨架** — Header 右上角顯示登入狀態、登入後可編輯、未登入僅可查看
-- 🤖 **Jarvis 遠端寫入** — 之後將從完全開放 Firestore 過渡到更安全的受控寫入模式
+- 🤖 **Jarvis 遠端寫入** — 已新增第一批受控 callable functions（新增/更新/刪除候選卡、追加留言），後續再逐步把高風險排程操作也收進 function 路徑
 
 ### UI/UX
 - 🌙 **深色模式** — 自動偵測系統偏好 + 手動切換
@@ -75,7 +75,7 @@ src/
     └── cards.json          # 初始種子卡片（12 個東京景點）
 
 functions/
-└── index.js                # Cloud Function: Gemini API proxy (onCall)
+└── index.js                # Cloud Functions: Gemini proxy + Jarvis controlled card mutations
 ```
 
 ## 🏗 資料結構（v7）
@@ -213,6 +213,7 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 - [x] Hosting 設定已對齊 repo，可直接 deploy
 - [x] Firestore rules 初步收緊為「登入才可寫」
 - [x] 前端改成未登入 view-only、已登入可編輯
+- [x] Jarvis 第一批受控 callable CRUD（候選卡 / 留言）
 
 ### 🔜 Phase 4 — 地圖 + 進階功能
 - [ ] 🗺️ **地圖整合** — 卡片標記經緯度，在地圖上顯示景點位置

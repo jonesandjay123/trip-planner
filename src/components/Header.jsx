@@ -10,7 +10,22 @@ function formatDate(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function Header({ tripName, startDate, endDate, onTripNameChange, onExport, onReset, darkMode, onToggleDark, planSelector }) {
+export default function Header({
+  tripName,
+  startDate,
+  endDate,
+  onTripNameChange,
+  onExport,
+  onReset,
+  darkMode,
+  onToggleDark,
+  planSelector,
+  authLoading,
+  user,
+  isOwner,
+  onLogin,
+  onLogout,
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tripName);
 
@@ -71,7 +86,29 @@ export default function Header({ tripName, startDate, endDate, onTripNameChange,
             </button>
           </div>
         </div>
-        {planSelector}
+        <div className="header-bottom-row">
+          {planSelector}
+          <div className="header-auth-status">
+            {authLoading ? (
+              <>
+                <span className="auth-email">正在確認登入狀態...</span>
+                <span className="auth-mode viewer">Checking</span>
+              </>
+            ) : user ? (
+              <>
+                <span className="auth-email">{user.email || 'unknown user'}</span>
+                <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner mode' : 'View only mode'}</span>
+                <button className="btn btn-auth" onClick={onLogout}>登出</button>
+              </>
+            ) : (
+              <>
+                <span className="auth-email">未登入</span>
+                <span className="auth-mode viewer">View only mode</span>
+                <button className="btn btn-auth" onClick={onLogin}>Google 登入</button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   );

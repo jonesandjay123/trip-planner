@@ -21,6 +21,8 @@ import PlanSelector from './components/PlanSelector';
 import NicknameModal from './components/NicknameModal';
 import AiModal from './components/AiModal';
 import { useNickname } from './hooks/useNickname';
+import { ownerEmail } from './firebase';
+import { logOut, signInWithGoogle, subscribeToAuthState } from './lib/auth';
 
 const STATE_VERSION = 7; // v7: day labels + cardOrder for pool sorting
 
@@ -109,6 +111,19 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isNewCard, setIsNewCard] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthState((nextUser) => {
+      setUser(nextUser);
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const isOwner = Boolean(user?.email && user.email.toLowerCase() === ownerEmail.toLowerCase());
 
   const cardMap = state.cards || {};
   const activePlan = useMemo(() => getActivePlan(state), [state]);
@@ -572,6 +587,11 @@ export default function App() {
           onReset={handleReset}
           darkMode={darkMode}
           onToggleDark={() => setDarkMode((v) => !v)}
+          authLoading={authLoading}
+          user={user}
+          isOwner={isOwner}
+          onLogin={() => signInWithGoogle().catch((error) => console.error('❌ Google sign-in failed:', error))}
+          onLogout={() => logOut().catch((error) => console.error('❌ Logout failed:', error))}
           planSelector={
             <PlanSelector
               plans={plansArray}

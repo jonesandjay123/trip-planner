@@ -40,7 +40,8 @@
 - 🕒 **Debounced 寫入** — 避免拖曳過程中的中間狀態頻繁寫入 Firestore
 - 🧲 **拖曳期間暫停同步** — 抓著卡片移動時不寫雲端，放手後才同步最終結果
 - 🌐 **跨裝置存取** — 任何瀏覽器打開同一個網址都看到同一份資料
-- 🤖 **Jarvis 遠端寫入** — AI 助手透過 Firestore REST API 直接推送卡片和調整排程
+- 🔐 **Google Auth 基礎骨架** — Header 右上角顯示登入狀態、Owner mode / View only mode
+- 🤖 **Jarvis 遠端寫入** — 之後將從完全開放 Firestore 過渡到更安全的受控寫入模式
 
 ### UI/UX
 - 🌙 **深色模式** — 自動偵測系統偏好 + 手動切換
@@ -136,8 +137,19 @@ npm run dev
 # Firebase Hosting + Functions
 npm run build
 firebase deploy
+```
 
-# GitHub Pages（自動，push to main 觸發 GitHub Actions）
+### 本地設定
+
+```bash
+cp .env.example .env.local
+```
+
+`.env.local` 至少包含：
+
+```bash
+VITE_FIREBASE_API_KEY=你的_firebase_web_api_key
+VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 ```
 
 ## 🔧 Tech Stack
@@ -180,6 +192,12 @@ firebase deploy
 - [x] Cloud Function proxy（保護 Gemini API key）
 - [x] AI 推薦行程 Modal（prompt + 數量選擇 + 建議 chips）
 - [x] 生成結果自動加入候選池
+
+### ✅ Phase 3.5 — 平台基礎對齊（進行中）
+- [x] 補 Google Auth 基礎骨架
+- [x] Header 右上角登入狀態區塊
+- [ ] Firebase Hosting 作為主要部署入口
+- [ ] Firestore rules 收緊 + owner/viewer 對齊
 
 ### 🔜 Phase 4 — 地圖 + 進階功能
 - [ ] 🗺️ **地圖整合** — 卡片標記經緯度，在地圖上顯示景點位置

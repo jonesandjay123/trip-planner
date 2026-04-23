@@ -157,6 +157,43 @@ function clonePlanObject(plan, nextId, nextName) {
   };
 }
 
+function sanitizeTripState(trip) {
+  const plans = trip && typeof trip.plans === "object" && trip.plans ? trip.plans : {};
+  const validPlanIds = new Set(Object.keys(plans));
+  const planOrderSource = Array.isArray(trip.planOrder) ? trip.planOrder : Object.keys(plans);
+  const planOrder = planOrderSource.filter((id) => validPlanIds.has(id));
+  const fallbackActive = planOrder[0] || null;
+  const activePlanId = validPlanIds.has(trip.tripMeta?.activePlanId) ? trip.tripMeta.activePlanId : fallbackActive;
+
+  const cleanedPlans = {};
+  for (const [planId, plan] of Object.entries(plans)) {
+    const nextDays = {};
+    for (const [date, zones] of Object.entries(plan.days || {})) {
+      const nextZones = {};
+      for (const [zone, ids] of Object.entries(zones || {})) {
+        nextZones[zone] = Array.isArray(ids) ? ids.filter((id) => trip.cards && trip.cards[id]) : [];
+      }
+      nextDays[date] = nextZones;
+    }
+    cleanedPlans[planId] = {
+      ...plan,
+      dayOrder: Array.isArray(plan.dayOrder) ? plan.dayOrder.filter((date) => nextDays[date]) : Object.keys(nextDays).sort(),
+      days: nextDays,
+      dayLabels: Object.fromEntries(Object.entries(plan.dayLabels || {}).filter(([date]) => nextDays[date])),
+    };
+  }
+
+  return {
+    ...trip,
+    plans: cleanedPlans,
+    planOrder,
+    tripMeta: {
+      ...(trip.tripMeta || {}),
+      activePlanId,
+    },
+  };
+}
+
 function removeCardFromPlan(plan, cardId) {
   const nextDays = {};
   for (const [date, zones] of Object.entries(plan.days || {})) {
@@ -728,7 +765,7 @@ exports.jarvisInspectCard = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (req
     throw new HttpsError("invalid-argument", "cardId is required");
   }
 
-  const trip = await getTripStateOrThrow();
+  const trip = sanitizeTripState(await getTripStateOrThrow());
   const card = trip.cards?.[cardId];
   if (!card) throw new HttpsError("not-found", "Card not found");
 
@@ -747,5 +784,30 @@ exports.jarvisInspectCard = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (req
     ok: true,
     card,
     placements,
+  };
+});
+
+exports.jarvisRepairTripState = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  const actor = assertJarvisCaller(request);
+  const currentTrip = await getTripStateOrThrow();
+  const repairedTrip = sanitizeTripState(currentTrip);
+
+  await tripRef().set({
+    plans: repairedTrip.plans,
+    planOrder: repairedTrip.planOrder,
+    tripMeta: {
+      ...(currentTrip.tripMeta || {}),
+      ...(repairedTrip.tripMeta || {}),
+      updatedAt: nowIso(),
+      updatedByEmail: actor.email,
+      updatedByUid: actor.uid,
+    },
+  }, {merge: true});
+
+  await appendActivityLog({action: "repair-trip-state", actorEmail: actor.email});
+  return {
+    ok: true,
+    activePlanId: repairedTrip.tripMeta?.activePlanId || null,
+    planOrder: repairedTrip.planOrder,
   };
 });

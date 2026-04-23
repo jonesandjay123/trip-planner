@@ -14,6 +14,7 @@ const jarvisRenameTripCall = httpsCallable(functions, 'jarvisRenameTrip')
 const jarvisInspectTripCall = httpsCallable(functions, 'jarvisInspectTrip')
 const jarvisInspectDayCall = httpsCallable(functions, 'jarvisInspectDay')
 const jarvisInspectCardCall = httpsCallable(functions, 'jarvisInspectCard')
+const jarvisRepairTripStateCall = httpsCallable(functions, 'jarvisRepairTripState')
 
 export async function jarvisAddCandidateCard(card) {
   const result = await jarvisAddCandidateCardCall({ card })
@@ -77,5 +78,10 @@ export async function jarvisInspectDay(planId, date) {
 
 export async function jarvisInspectCard(cardId) {
   const result = await jarvisInspectCardCall({ cardId })
+  return result.data
+}
+
+export async function jarvisRepairTripState() {
+  const result = await jarvisRepairTripStateCall({})
   return result.data
 }

@@ -589,19 +589,22 @@ exports.jarvisDeletePlan = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (requ
   }
 
   const trip = await getTripStateOrThrow();
-  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : [];
+  const plans = trip.plans && typeof trip.plans === "object" ? trip.plans : {};
+  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : Object.keys(plans);
   if (planOrder.length <= 1) {
     throw new HttpsError("failed-precondition", "Cannot delete the only remaining plan");
   }
-  if (!trip.plans?.[planId]) {
+  if (!plans[planId]) {
     throw new HttpsError("not-found", "Plan not found");
   }
 
-  const remainingOrder = planOrder.filter((id) => id !== planId);
-  const nextActive = trip.tripMeta?.activePlanId === planId ? remainingOrder[0] : trip.tripMeta?.activePlanId;
+  const nextPlans = {...plans};
+  delete nextPlans[planId];
+  const remainingOrder = planOrder.filter((id) => id !== planId && nextPlans[id]);
+  const nextActive = trip.tripMeta?.activePlanId === planId ? remainingOrder[0] : (remainingOrder.includes(trip.tripMeta?.activePlanId) ? trip.tripMeta.activePlanId : remainingOrder[0]);
 
   await tripRef().set({
-    [`plans.${planId}`]: FieldValue.delete(),
+    plans: nextPlans,
     planOrder: remainingOrder,
     tripMeta: {
       ...(trip.tripMeta || {}),
@@ -610,7 +613,7 @@ exports.jarvisDeletePlan = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (requ
       updatedByEmail: actor.email,
       updatedByUid: actor.uid,
     },
-  }, {merge: true});
+  }, {merge: false});
 
   await appendActivityLog({action: "delete-plan", planId, actorEmail: actor.email});
   return {ok: true, planId, activePlanId: nextActive};
@@ -793,8 +796,8 @@ exports.jarvisRepairTripState = onCall({secrets: [JARVIS_SHARED_SECRET]}, async 
   const repairedTrip = sanitizeTripState(currentTrip);
 
   await tripRef().set({
-    plans: repairedTrip.plans,
-    planOrder: repairedTrip.planOrder,
+    ...currentTrip,
+    ...repairedTrip,
     tripMeta: {
       ...(currentTrip.tripMeta || {}),
       ...(repairedTrip.tripMeta || {}),
@@ -802,7 +805,7 @@ exports.jarvisRepairTripState = onCall({secrets: [JARVIS_SHARED_SECRET]}, async 
       updatedByEmail: actor.email,
       updatedByUid: actor.uid,
     },
-  }, {merge: true});
+  }, {merge: false});
 
   await appendActivityLog({action: "repair-trip-state", actorEmail: actor.email});
   return {

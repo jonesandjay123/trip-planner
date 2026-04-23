@@ -1,5 +1,7 @@
+const crypto = require("node:crypto");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 
@@ -11,6 +13,7 @@ const FieldValue = admin.firestore.FieldValue;
 
 const TRIP_DOC_PATH = "trips/main";
 const VALID_ZONES = ["morning", "afternoon", "evening", "flexible"];
+const JARVIS_SHARED_SECRET = defineSecret("JARVIS_SHARED_SECRET");
 
 function nowIso() {
   return new Date().toISOString();
@@ -20,20 +23,41 @@ function tripRef() {
   return db.doc(TRIP_DOC_PATH);
 }
 
-function assertJarvisCaller(request) {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Authentication required");
+function timingSafeEqualString(a, b) {
+  const aBuf = Buffer.from(String(a || ""));
+  const bBuf = Buffer.from(String(b || ""));
+
+  if (aBuf.length !== bBuf.length) {
+    return false;
   }
 
-  const email = request.auth.token.email;
-  if (typeof email !== "string" || !email.trim()) {
-    throw new HttpsError("permission-denied", "Caller email is required");
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+function assertJarvisCaller(request) {
+  const expected = JARVIS_SHARED_SECRET.value();
+  const provided = request.data && typeof request.data.jarvisSecret === "string" ?
+    request.data.jarvisSecret : "";
+
+  if (!expected) {
+    logger.error("JARVIS_SHARED_SECRET secret is missing");
+    throw new HttpsError("failed-precondition", "Jarvis secret is not configured on the server.");
   }
+
+  if (!provided || !timingSafeEqualString(provided, expected)) {
+    throw new HttpsError("permission-denied", "Jarvis shared secret verification failed.");
+  }
+
+  const actorEmail = request.data && typeof request.data.actorEmail === "string" && request.data.actorEmail.trim() ?
+    request.data.actorEmail.trim().toLowerCase() : "jarvis@local";
+  const actorName = request.data && typeof request.data.actorName === "string" && request.data.actorName.trim() ?
+    request.data.actorName.trim() : "Jarvis";
 
   return {
-    uid: request.auth.uid,
-    email: email.toLowerCase(),
-    displayName: request.auth.token.name || email,
+    uid: request.data && typeof request.data.actorUid === "string" && request.data.actorUid.trim() ?
+      request.data.actorUid.trim() : "jarvis-shared-secret",
+    email: actorEmail,
+    displayName: actorName,
   };
 }
 
@@ -285,7 +309,7 @@ Rules:
     },
 );
 
-exports.jarvisAddCandidateCard = onCall(async (request) => {
+exports.jarvisAddCandidateCard = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const nextCard = normalizeCardInput(request.data?.card);
 
@@ -314,7 +338,7 @@ exports.jarvisAddCandidateCard = onCall(async (request) => {
   return {ok: true, cardId: nextCard.id};
 });
 
-exports.jarvisUpdateCandidateCard = onCall(async (request) => {
+exports.jarvisUpdateCandidateCard = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const cardId = String(request.data?.cardId || "").trim();
   const patch = request.data?.patch;
@@ -352,7 +376,7 @@ exports.jarvisUpdateCandidateCard = onCall(async (request) => {
   return {ok: true, cardId};
 });
 
-exports.jarvisDeleteCandidateCard = onCall(async (request) => {
+exports.jarvisDeleteCandidateCard = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const cardId = String(request.data?.cardId || "").trim();
 
@@ -401,7 +425,7 @@ exports.jarvisDeleteCandidateCard = onCall(async (request) => {
   return {ok: true, cardId};
 });
 
-exports.jarvisAppendCommentToCard = onCall(async (request) => {
+exports.jarvisAppendCommentToCard = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const cardId = String(request.data?.cardId || "").trim();
   const text = String(request.data?.text || "").trim();
@@ -441,7 +465,7 @@ exports.jarvisAppendCommentToCard = onCall(async (request) => {
   return {ok: true, cardId, comment};
 });
 
-exports.jarvisMoveCardToSlot = onCall(async (request) => {
+exports.jarvisMoveCardToSlot = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const cardId = String(request.data?.cardId || "").trim();
   const planId = String(request.data?.planId || "default").trim() || "default";
@@ -488,7 +512,7 @@ exports.jarvisMoveCardToSlot = onCall(async (request) => {
   return {ok: true, cardId, planId, date, zone};
 });
 
-exports.jarvisClonePlan = onCall(async (request) => {
+exports.jarvisClonePlan = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const sourcePlanId = String(request.data?.sourcePlanId || "default").trim() || "default";
   const name = String(request.data?.name || "").trim();
@@ -519,7 +543,7 @@ exports.jarvisClonePlan = onCall(async (request) => {
   return {ok: true, planId: nextId, name: nextName};
 });
 
-exports.jarvisResetPlan = onCall(async (request) => {
+exports.jarvisResetPlan = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const planId = String(request.data?.planId || "default").trim() || "default";
 
@@ -550,7 +574,7 @@ exports.jarvisResetPlan = onCall(async (request) => {
   return {ok: true, planId};
 });
 
-exports.jarvisRenameDayLabel = onCall(async (request) => {
+exports.jarvisRenameDayLabel = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const planId = String(request.data?.planId || "default").trim() || "default";
   const date = String(request.data?.date || "").trim();
@@ -573,7 +597,7 @@ exports.jarvisRenameDayLabel = onCall(async (request) => {
   return {ok: true, planId, date, label};
 });
 
-exports.jarvisRenameTrip = onCall(async (request) => {
+exports.jarvisRenameTrip = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   const actor = assertJarvisCaller(request);
   const title = String(request.data?.title || "").trim();
 

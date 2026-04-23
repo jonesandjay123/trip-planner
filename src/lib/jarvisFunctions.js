@@ -15,6 +15,7 @@ const jarvisInspectTripCall = httpsCallable(functions, 'jarvisInspectTrip')
 const jarvisInspectDayCall = httpsCallable(functions, 'jarvisInspectDay')
 const jarvisInspectCardCall = httpsCallable(functions, 'jarvisInspectCard')
 const jarvisRepairTripStateCall = httpsCallable(functions, 'jarvisRepairTripState')
+const jarvisRestoreSeedCardsCall = httpsCallable(functions, 'jarvisRestoreSeedCards')
 
 export async function jarvisAddCandidateCard(card) {
   const result = await jarvisAddCandidateCardCall({ card })
@@ -83,5 +84,10 @@ export async function jarvisInspectCard(cardId) {
 
 export async function jarvisRepairTripState() {
   const result = await jarvisRepairTripStateCall({})
+  return result.data
+}
+
+export async function jarvisRestoreSeedCards() {
+  const result = await jarvisRestoreSeedCardsCall({})
   return result.data
 }

@@ -4,6 +4,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const seedCards = require("./seedCards");
 
 setGlobalOptions({maxInstances: 10});
 
@@ -812,5 +813,30 @@ exports.jarvisRepairTripState = onCall({secrets: [JARVIS_SHARED_SECRET]}, async 
     ok: true,
     activePlanId: repairedTrip.tripMeta?.activePlanId || null,
     planOrder: repairedTrip.planOrder,
+  };
+});
+
+exports.jarvisRestoreSeedCards = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  const actor = assertJarvisCaller(request);
+  const trip = await getTripStateOrThrow();
+  const restoredCards = Object.fromEntries(seedCards.map((card) => [card.id, {...card, comments: []}]));
+  const restoredOrder = seedCards.map((card) => card.id);
+
+  await tripRef().set({
+    ...trip,
+    cards: restoredCards,
+    cardOrder: restoredOrder,
+    tripMeta: {
+      ...(trip.tripMeta || {}),
+      updatedAt: nowIso(),
+      updatedByEmail: actor.email,
+      updatedByUid: actor.uid,
+    },
+  }, {merge: false});
+
+  await appendActivityLog({action: "restore-seed-cards", actorEmail: actor.email, restoredCount: restoredOrder.length});
+  return {
+    ok: true,
+    restoredCount: restoredOrder.length,
   };
 });

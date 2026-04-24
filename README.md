@@ -17,7 +17,7 @@
 ### 核心
 - 🎯 **拖曳排程** — 把候選卡片拖到每日時段（早上/下午/晚上/彈性）
 - 📋 **多方案版本** — Clone 不同排法互相比較，不怕改壞別人的版本
-- 🗑️ **方案刪除** — 可刪除目前 active 方案；只剩一個方案時自動禁用，避免誤刪全部資料
+- ✏️ **方案管理** — 可 clone、改名、清空目前方案排程、刪除 active 方案；只剩一個方案時禁止刪除
 - 🎒 **共用候選池** — 所有方案共享同一組卡片，候選池按 active plan 動態計算
 - ↔️ **候選池排序** — 候選卡可拖動重新排序，重要景點可放左邊
 - 🏷️ **每日主題標籤** — 每天行程欄上方可加簡短標籤（如「🗻 富士山」「♨️ 河口湖」）
@@ -71,9 +71,10 @@
 
 目前 UI 只提供：
 
+- 清空目前 active plan 的排程，但不刪卡片或其他方案。
 - 刪除目前 active plan。
 - 只剩一個 plan 時不能刪除。
-- 刪除前需要 confirm。
+- 清空 / 刪除前都需要 confirm。
 
 如未來需要 reset / restore，應走 admin-only function 或 `jarvis-firebase-ops`，並先 export snapshot。
 
@@ -86,7 +87,7 @@ src/
 ├── firebase.js             # Firebase 初始化 + Firestore 連線
 ├── components/
 │   ├── Header.jsx          # 頂部導航列
-│   ├── PlanSelector.jsx    # 方案版本選擇器（switch/clone/delete active plan）
+│   ├── PlanSelector.jsx    # 方案版本選擇器（switch/clone/rename/clear active plan）
 │   ├── DayColumn.jsx       # 每日行程欄（含主題標籤）
 │   ├── DropZone.jsx        # 時段拖放區
 │   ├── Card.jsx            # 行程卡片（壓縮/展開 + 留言）
@@ -211,7 +212,7 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 ### ✅ Phase 1 — 靜態 MVP（完成）
 - [x] 拖放排程 + 候選池
 - [x] 卡片編輯 Modal + 留言
-- [x] 多方案版本（clone / active plan delete / reset active plan via controlled function）
+- [x] 多方案版本（clone / rename / clear active plan / active plan delete）
 - [x] 深色模式 + 匯出 + 響應式
 - [x] GitHub Pages 部署
 

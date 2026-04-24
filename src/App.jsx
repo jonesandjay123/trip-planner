@@ -229,12 +229,15 @@ export default function App() {
 
   function handleRenamePlan(planId, newName) {
     if (!requireEditable()) return;
-    if (!newName.trim()) return;
+    if (!planId) return;
+    const currentName = state.plans?.[planId]?.name || '';
+    const nextName = newName ?? window.prompt('新的方案名稱', currentName);
+    if (!nextName?.trim()) return;
     setState((prev) => ({
       ...prev,
       plans: {
         ...prev.plans,
-        [planId]: { ...prev.plans[planId], name: newName.trim() },
+        [planId]: { ...prev.plans[planId], name: nextName.trim() },
       },
     }));
   }
@@ -675,8 +678,7 @@ export default function App() {
               onSwitch={handleSwitchPlan}
               onClone={handleClonePlan}
               onRename={handleRenamePlan}
-              onDelete={handleDeletePlan}
-              canDeletePlan={(state.planOrder || []).length > 1}
+              onClearPlan={handleResetPlan}
             />
           }
         />

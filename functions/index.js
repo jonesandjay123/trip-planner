@@ -95,6 +95,22 @@ function normalizeCardInput(input, {existingId, preserveComments = true} = {}) {
     source: String(input.source || "jarvis").trim() || "jarvis",
   };
 
+  if (input.location && typeof input.location === "object") {
+    const lat = Number(input.location.lat);
+    const lng = Number(input.location.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      normalized.location = {
+        placeName: String(input.location.placeName || "").trim(),
+        address: String(input.location.address || "").trim(),
+        lat,
+        lng,
+        source: String(input.location.source || "manual").trim() || "manual",
+        confidence: String(input.location.confidence || "medium").trim() || "medium",
+        updatedAt: String(input.location.updatedAt || nowIso()).trim() || nowIso(),
+      };
+    }
+  }
+
   if (preserveComments) {
     normalized.comments = Array.isArray(input.comments) ? input.comments : [];
   }

@@ -18,7 +18,7 @@ function formatCommentDate(timestamp) {
   return `${month}/${day} ${h}:${m}`;
 }
 
-function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
+function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProps, onToggle, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
   const [commentText, setCommentText] = useState('');
   const [editingIdx, setEditingIdx] = useState(-1);
   const [editDraft, setEditDraft] = useState('');
@@ -29,6 +29,9 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
     return (
       <div className={`card card-compact ${isDragOverlay ? 'card-overlay' : ''} ${zoneMatch ? 'card-zone-match' : ''}`}>
         <div className="card-compact-row">
+          {!isDragOverlay && (
+            <button className="card-drag-handle" type="button" title="拖曳移動" {...dragHandleProps}>☰</button>
+          )}
           <span className="card-compact-title">📍 {card.title}</span>
           <span className="card-compact-duration">{card.duration}</span>
           {comments.length > 0 && (
@@ -60,7 +63,12 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
   return (
     <div className={`card ${isDragOverlay ? 'card-overlay' : ''} ${zoneMatch ? 'card-zone-match' : ''}`}>
       <div className="card-header-row">
-        <div className="card-title">📍 {card.title}</div>
+        <div className="card-title-row">
+          {!isDragOverlay && (
+            <button className="card-drag-handle" type="button" title="拖曳移動" {...dragHandleProps}>☰</button>
+          )}
+          <div className="card-title">📍 {card.title}</div>
+        </div>
         <div className="card-header-actions">
           {onEdit && (
             <button
@@ -200,31 +208,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, onToggle, onEd
   );
 }
 
-export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const showCompact = !inPool && !expanded && !isDragOverlay;
-  const showActions = !isDragOverlay && (inPool || expanded);
-
-  const content = (
-    <CardContent
-      card={card}
-      isDragOverlay={isDragOverlay}
-      currentZone={currentZone}
-      compact={showCompact}
-      onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
-      onEdit={showActions ? onEdit : undefined}
-      onDelete={showActions ? onDelete : undefined}
-      onAddComment={showActions ? onAddComment : undefined}
-      onEditComment={showActions ? onEditComment : undefined}
-      onDeleteComment={showActions ? onDeleteComment : undefined}
-    />
-  );
-
-  if (isDragOverlay) {
-    return content;
-  }
-
+function SortableCardShell({ card, children }) {
   const {
     attributes,
     listeners,
@@ -240,9 +224,47 @@ export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit,
     opacity: isDragging ? 0.3 : 1,
   };
 
+  return children({
+    shellProps: { ref: setNodeRef, style, className: 'sortable-card-shell' },
+    dragHandleProps: { ...attributes, ...listeners },
+  });
+}
+
+export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const showCompact = !inPool && !expanded && !isDragOverlay;
+  const showActions = !isDragOverlay && (inPool || expanded);
+
+  function renderContent(dragHandleProps = {}) {
+    return (
+      <CardContent
+        card={card}
+        isDragOverlay={isDragOverlay}
+        currentZone={currentZone}
+        compact={showCompact}
+        dragHandleProps={dragHandleProps}
+        onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
+        onEdit={showActions ? onEdit : undefined}
+        onDelete={showActions ? onDelete : undefined}
+        onAddComment={showActions ? onAddComment : undefined}
+        onEditComment={showActions ? onEditComment : undefined}
+        onDeleteComment={showActions ? onDeleteComment : undefined}
+      />
+    );
+  }
+
+  if (isDragOverlay) {
+    return renderContent();
+  }
+
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {content}
-    </div>
+    <SortableCardShell card={card}>
+      {({ shellProps, dragHandleProps }) => (
+        <div {...shellProps}>
+          {renderContent(dragHandleProps)}
+        </div>
+      )}
+    </SortableCardShell>
   );
 }

@@ -454,6 +454,13 @@ body {
   flex: 1;
 }
 
+.day-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.day-map-btn,
 .swap-btn {
   background: none;
   border: 1px solid var(--swap-border);
@@ -466,6 +473,7 @@ body {
   line-height: 1;
 }
 
+.day-map-btn:hover,
 .swap-btn:hover:not(:disabled) {
   background: var(--swap-hover-bg);
   color: white;
@@ -1943,5 +1951,267 @@ body {
 
   .mobile-header-menu button:hover {
     background: var(--btn-bg);
+  }
+}
+
+/* ===== Day Map Modal ===== */
+.modal-section-title {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--column-border);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.modal-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.map-modal-card {
+  max-width: min(980px, 96vw);
+  max-height: 92vh;
+}
+
+.map-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+.map-modal-subtitle {
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.map-modal-close {
+  border: 1px solid var(--btn-border);
+  border-radius: 10px;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 8px 10px;
+}
+
+.map-modal-close:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.map-modal-body {
+  padding: 0 24px 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.7fr);
+  gap: 16px;
+}
+
+.day-map,
+.map-empty-state {
+  min-height: 520px;
+  width: 100%;
+  border: 1px solid var(--column-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--card-shadow);
+}
+
+.map-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--input-bg);
+}
+
+.map-empty-state span,
+.map-muted {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.map-empty-icon {
+  font-size: 36px;
+}
+
+.map-number-marker {
+  background: transparent;
+  border: 0;
+}
+
+.map-number-marker span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid white;
+  border-radius: 999px 999px 999px 4px;
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  font-weight: 900;
+  transform: rotate(-45deg);
+}
+
+.map-number-marker b {
+  font-style: normal;
+  line-height: 1;
+  transform: rotate(45deg);
+}
+
+.map-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 170px;
+}
+
+.map-popup span,
+.map-popup small {
+  color: #555;
+}
+
+.map-itinerary-list,
+.map-missing-box {
+  border: 1px solid var(--column-border);
+  border-radius: 14px;
+  background: var(--card-bg);
+  padding: 12px;
+}
+
+.map-itinerary-list {
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.map-list-title {
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.map-list-item {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 9px;
+  align-items: start;
+  padding: 9px 0;
+  border-top: 1px solid var(--column-border);
+}
+
+.map-list-item:first-of-type {
+  border-top: 0;
+}
+
+.map-list-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.map-list-item.missing-location .map-list-number {
+  background: var(--text-ghost);
+}
+
+.map-list-item strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.map-list-item small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.map-missing-box {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-secondary);
+}
+
+.map-missing-box span {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.leaflet-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif;
+}
+
+@media (max-width: 768px) {
+  .map-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .day-map,
+  .map-empty-state {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .map-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .map-modal-card {
+    max-width: none;
+    width: 100%;
+    max-height: 94vh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .map-modal-header {
+    padding: 16px 16px 10px;
+  }
+
+  .map-modal-body {
+    padding: 0 14px 18px;
+  }
+
+  .day-map,
+  .map-empty-state {
+    min-height: 58vh;
+  }
+
+  .map-itinerary-list {
+    max-height: none;
   }
 }

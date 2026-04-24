@@ -12,7 +12,7 @@ function formatDayHeader(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, isMobileSelected, onEditCard, onDeleteCard, onAddComment, onEditComment, onDeleteComment, onLabelChange }) {
+export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, isMobileSelected, onEditCard, onDeleteCard, onAddComment, onEditComment, onDeleteComment, onLabelChange, onOpenMap }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label || '');
 
@@ -47,14 +47,24 @@ export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst
           ◀
         </button>
         <span className="day-date">{formatDayHeader(date)}</span>
-        <button
-          className="swap-btn"
-          onClick={() => onSwap(date, 1)}
-          disabled={isLast}
-          title="往右移"
-        >
-          ▶
-        </button>
+        <div className="day-header-actions">
+          <button
+            className="day-map-btn"
+            onClick={() => onOpenMap?.(date)}
+            title="查看當天地圖"
+            aria-label="查看當天地圖"
+          >
+            🗺️
+          </button>
+          <button
+            className="swap-btn"
+            onClick={() => onSwap(date, 1)}
+            disabled={isLast}
+            title="往右移"
+          >
+            ▶
+          </button>
+        </div>
       </div>
 
       <div className="day-label" onDoubleClick={handleDoubleClick}>

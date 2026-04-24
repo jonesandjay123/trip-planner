@@ -20,6 +20,7 @@ import CardModal from './components/CardModal';
 import PlanSelector from './components/PlanSelector';
 import NicknameModal from './components/NicknameModal';
 import AiModal from './components/AiModal';
+import DayMapModal from './components/DayMapModal';
 import { useNickname } from './hooks/useNickname';
 import { ownerEmail } from './firebase';
 import { logOut, signInWithGoogle, subscribeToAuthState } from './lib/auth';
@@ -112,6 +113,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isNewCard, setIsNewCard] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [mapModalDay, setMapModalDay] = useState(null);
   const [candidatePanelOpen, setCandidatePanelOpen] = useState(false);
   const [mobileDay, setMobileDay] = useState(() => localStorage.getItem(MOBILE_DAY_KEY) || '');
   const [authLoading, setAuthLoading] = useState(true);
@@ -741,6 +743,7 @@ export default function App() {
               onDeleteComment={handleDeleteComment}
               isMobileSelected={date === currentMobileDay}
               onLabelChange={handleDayLabelChange}
+              onOpenMap={setMapModalDay}
             />
           ))}
         </div>
@@ -778,6 +781,16 @@ export default function App() {
           card={modalCard}
           onSave={handleModalSave}
           onClose={closeModal}
+        />
+      )}
+
+      {mapModalDay && (
+        <DayMapModal
+          date={mapModalDay}
+          label={(activePlan?.dayLabels || {})[mapModalDay] || ''}
+          zones={activeDays[mapModalDay]}
+          cardMap={cardMap}
+          onClose={() => setMapModalDay(null)}
         />
       )}
 

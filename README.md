@@ -49,6 +49,7 @@
 - 👤 **暱稱系統** — 首次進站詢問暱稱，留言自動署名；留空則隨機生成（如「冒險的🐻熊 #42」）
 - 📋 **匯出 JSON** — 匯出當前方案到剪貼簿
 - 🛡️ **移除全域重置入口** — 避免誤觸覆蓋整份 Firestore trip document
+- 🗺️ **每日地圖 Modal** — 卡片可 optional 填 lat/lng/address；每一天可用 Leaflet + OpenStreetMap 顯示已定位景點 marker、順序連線與未定位清單
 
 ## 📱 Mobile UX 模式（2026-04）
 
@@ -91,7 +92,8 @@ src/
 │   ├── DayColumn.jsx       # 每日行程欄（含主題標籤）
 │   ├── DropZone.jsx        # 時段拖放區
 │   ├── Card.jsx            # 行程卡片（壓縮/展開 + 留言）
-│   ├── CardModal.jsx       # 卡片編輯 Modal
+│   ├── CardModal.jsx       # 卡片編輯 Modal（含 optional location 欄位）
+│   ├── DayMapModal.jsx     # Leaflet + OSM 每日地圖 Modal
 │   ├── CandidatePool.jsx   # 候選行程池
 │   ├── NicknameModal.jsx   # 暱稱輸入 Modal
 │   └── AiModal.jsx         # AI 推薦行程 Modal
@@ -121,7 +123,17 @@ state = {
   },
 
   cards: {
-    "asakusa": { id, title, subtitle, zone, duration, area, note, tags, comments: [], source: "seed" },
+    "asakusa": {
+      id, title, subtitle, zone, duration, area, note, tags, comments: [], source: "seed",
+      location: { // optional；舊卡可沒有
+        placeName: "Senso-ji Temple",
+        address: "2 Chome-3-1 Asakusa, Taito City, Tokyo",
+        lat: 35.714765,
+        lng: 139.796655,
+        source: "manual",
+        updatedAt: "2026-04-24T...Z"
+      }
+    },
     "ai_xxx": { ..., source: "gemini" },  // AI 生成的卡片
   },
 
@@ -151,6 +163,7 @@ state = {
 - **dayLabels 跟 plan 走** — 每個方案可有自己的每日主題標籤
 - **Comments 跟卡片走** — 不跟方案走
 - **AI 卡片標記 source: "gemini"** — 區分手動新增和 AI 生成
+- **Location optional** — 有 `location.lat/lng` 的卡片會出現在 day map；沒有座標的卡片不阻擋排程，會列在地圖 modal 的「尚未定位」清單
 
 ## 🚀 Getting Started
 
@@ -248,8 +261,8 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 - [x] Jarvis-only Firestore backup callables（create / inspect / restore `trips/backup_*`）
 
 ### 🔜 Phase 4 — 地圖 + 進階功能
-- [ ] 🗺️ **地圖整合** — 卡片標記經緯度，在地圖上顯示景點位置
-- [ ] 📍 **每日路線視覺化** — 按日期在地圖上畫出當天的行程路線
+- [x] 🗺️ **地圖整合 MVP** — 卡片 optional 標記經緯度，每日 modal 顯示 Leaflet + OpenStreetMap marker
+- [x] 📍 **每日路線視覺化 MVP** — 按日期用行程順序 marker + 直線 polyline 顯示分布
 - [ ] 🧭 **AI 排程建議** — 根據地理位置 + 營業時間自動排出最順路線
 - [ ] 🔗 分享連結（`/trip/{tripId}` 支援多趟旅行）
 - [ ] 🔒 Firestore rules 進一步收緊 + 權限分流

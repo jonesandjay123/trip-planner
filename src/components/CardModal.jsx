@@ -18,6 +18,10 @@ export default function CardModal({ card, onSave, onClose }) {
     zone: 'flexible',
     note: '',
     tags: '',
+    placeName: '',
+    address: '',
+    lat: '',
+    lng: '',
   });
 
   useEffect(() => {
@@ -30,6 +34,24 @@ export default function CardModal({ card, onSave, onClose }) {
         zone: card.zone || 'flexible',
         note: card.note || '',
         tags: Array.isArray(card.tags) ? card.tags.join(', ') : '',
+        placeName: card.location?.placeName || '',
+        address: card.location?.address || '',
+        lat: Number.isFinite(Number(card.location?.lat)) ? String(card.location.lat) : '',
+        lng: Number.isFinite(Number(card.location?.lng)) ? String(card.location.lng) : '',
+      });
+    } else {
+      setForm({
+        title: '',
+        subtitle: '',
+        area: '',
+        duration: '',
+        zone: 'flexible',
+        note: '',
+        tags: '',
+        placeName: '',
+        address: '',
+        lat: '',
+        lng: '',
       });
     }
   }, [card]);
@@ -44,6 +66,38 @@ export default function CardModal({ card, onSave, onClose }) {
       alert('標題為必填欄位');
       return;
     }
+
+    const latText = form.lat.trim();
+    const lngText = form.lng.trim();
+    const lat = latText === '' ? null : Number(latText);
+    const lng = lngText === '' ? null : Number(lngText);
+
+    if ((latText || lngText) && (!Number.isFinite(lat) || !Number.isFinite(lng))) {
+      alert('如果要填座標，latitude / longitude 都必須是有效數字。');
+      return;
+    }
+
+    if (Number.isFinite(lat) && (lat < -90 || lat > 90)) {
+      alert('Latitude 必須介於 -90 到 90。');
+      return;
+    }
+
+    if (Number.isFinite(lng) && (lng < -180 || lng > 180)) {
+      alert('Longitude 必須介於 -180 到 180。');
+      return;
+    }
+
+    const location = Number.isFinite(lat) && Number.isFinite(lng)
+      ? {
+          ...(card?.location || {}),
+          placeName: form.placeName.trim(),
+          address: form.address.trim(),
+          lat,
+          lng,
+          source: card?.location?.source || 'manual',
+          updatedAt: new Date().toISOString(),
+        }
+      : undefined;
 
     const updatedCard = {
       ...(card || {}),
@@ -61,6 +115,12 @@ export default function CardModal({ card, onSave, onClose }) {
       comments: card?.comments || [],
       source: card?.source || 'custom',
     };
+
+    if (location) {
+      updatedCard.location = location;
+    } else if (card?.location) {
+      delete updatedCard.location;
+    }
 
     onSave(updatedCard, isNew);
   }
@@ -156,6 +216,56 @@ export default function CardModal({ card, onSave, onClose }) {
               placeholder="逗號分隔，例：美食, 購物, 打卡"
             />
           </label>
+
+          <div className="modal-section-title">📍 地圖座標（optional）</div>
+
+          <label className="modal-field">
+            <span className="modal-label">地點名稱</span>
+            <input
+              type="text"
+              name="placeName"
+              value={form.placeName}
+              onChange={handleChange}
+              placeholder="例：Senso-ji Temple"
+            />
+          </label>
+
+          <label className="modal-field">
+            <span className="modal-label">地址</span>
+            <input
+              type="text"
+              name="address"
+              value={form.address}
+              onChange={handleChange}
+              placeholder="例：2 Chome-3-1 Asakusa, Taito City, Tokyo"
+            />
+          </label>
+
+          <div className="modal-field-row">
+            <label className="modal-field">
+              <span className="modal-label">Latitude</span>
+              <input
+                type="number"
+                name="lat"
+                value={form.lat}
+                onChange={handleChange}
+                placeholder="35.7148"
+                step="any"
+              />
+            </label>
+
+            <label className="modal-field">
+              <span className="modal-label">Longitude</span>
+              <input
+                type="number"
+                name="lng"
+                value={form.lng}
+                onChange={handleChange}
+                placeholder="139.7967"
+                step="any"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="modal-actions">

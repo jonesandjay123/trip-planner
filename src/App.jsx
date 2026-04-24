@@ -114,6 +114,7 @@ export default function App() {
   const [isNewCard, setIsNewCard] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [mapModalDay, setMapModalDay] = useState(null);
+  const [mapModalCardId, setMapModalCardId] = useState(null);
   const [candidatePanelOpen, setCandidatePanelOpen] = useState(false);
   const [mobileDay, setMobileDay] = useState(() => localStorage.getItem(MOBILE_DAY_KEY) || '');
   const [authLoading, setAuthLoading] = useState(true);
@@ -574,6 +575,25 @@ export default function App() {
     });
   }
 
+  function handleUnassignCard(cardId) {
+    if (!requireEditable()) return;
+    updateActivePlan((plan) => {
+      const newDays = {};
+      for (const [date, zones] of Object.entries(plan.days || {})) {
+        const nextZones = {};
+        for (const [zone, ids] of Object.entries(zones || {})) {
+          nextZones[zone] = Array.isArray(ids) ? ids.filter((id) => id !== cardId) : [];
+        }
+        newDays[date] = nextZones;
+      }
+      return { ...plan, days: newDays };
+    });
+  }
+
+  function openCardMap(card) {
+    setMapModalCardId(card.id);
+  }
+
   // ==================== Trip-level actions ====================
 
   function handleTripNameChange(name) {
@@ -738,6 +758,8 @@ export default function App() {
               isLast={idx === activeDayOrder.length - 1}
               onEditCard={openEditModal}
               onDeleteCard={handleDeleteCard}
+              onUnassignCard={handleUnassignCard}
+              onOpenCardMap={openCardMap}
               onAddComment={handleAddComment}
               onEditComment={handleEditComment}
               onDeleteComment={handleDeleteComment}
@@ -759,6 +781,7 @@ export default function App() {
           onAiGenerate={() => setAiModalOpen(true)}
           onEdit={openEditModal}
           onDeleteCard={handleDeleteCard}
+          onOpenMap={openCardMap}
           onAddComment={handleAddComment}
           onEditComment={handleEditComment}
           onDeleteComment={handleDeleteComment}
@@ -791,6 +814,16 @@ export default function App() {
           zones={activeDays[mapModalDay]}
           cardMap={cardMap}
           onClose={() => setMapModalDay(null)}
+        />
+      )}
+
+      {mapModalCardId && cardMap[mapModalCardId] && (
+        <DayMapModal
+          zones={{ flexible: [mapModalCardId] }}
+          cardMap={cardMap}
+          titleOverride={`🗺️ ${cardMap[mapModalCardId].title}`}
+          subtitleOverride="單一景點地圖預覽"
+          onClose={() => setMapModalCardId(null)}
         />
       )}
 

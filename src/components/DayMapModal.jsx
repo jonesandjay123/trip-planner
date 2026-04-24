@@ -76,7 +76,7 @@ function SelectedMapFocus({ selectedEntry }) {
   return null;
 }
 
-export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
+export default function DayMapModal({ date, label, zones, cardMap, onClose, titleOverride, subtitleOverride }) {
   const [copiedCardId, setCopiedCardId] = useState('');
   const [selectedCardId, setSelectedCardId] = useState('');
 
@@ -161,8 +161,8 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
       <div className="modal-card map-modal-card">
         <div className="modal-header map-modal-header">
           <div>
-            <h2>🗺️ {formatDay(date)} 地圖</h2>
-            <p className="map-modal-subtitle">{label || '今日行程'} · {cardsWithLocation.length} 個已定位景點</p>
+            <h2>{titleOverride || `🗺️ ${formatDay(date)} 地圖`}</h2>
+            <p className="map-modal-subtitle">{subtitleOverride || `${label || '今日行程'} · ${cardsWithLocation.length} 個已定位景點`}</p>
           </div>
           <button className="map-modal-close" onClick={onClose} aria-label="關閉地圖">
             ✕

@@ -18,7 +18,7 @@ function formatCommentDate(timestamp) {
   return `${month}/${day} ${h}:${m}`;
 }
 
-function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProps, onToggle, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
+function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProps, onToggle, onEdit, onDelete, onUnassign, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
   const [commentText, setCommentText] = useState('');
   const [editingIdx, setEditingIdx] = useState(-1);
   const [editDraft, setEditDraft] = useState('');
@@ -38,6 +38,16 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
             <span className="card-compact-comments" title={`${comments.length} 則留言`}>
               💬{comments.length}
             </span>
+          )}
+          {onOpenMap && (
+            <button
+              className="card-expand-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onOpenMap(card); }}
+              title="地圖預覽"
+            >
+              🗺️
+            </button>
           )}
           <button
             className="card-expand-btn"
@@ -81,6 +91,16 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
               ✏️
             </button>
           )}
+          {onOpenMap && (
+            <button
+              className="card-edit-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onOpenMap(card); }}
+              title="地圖預覽"
+            >
+              🗺️
+            </button>
+          )}
           {onDelete && (
             <button
               className="card-edit-btn card-delete-btn"
@@ -94,6 +114,21 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
               title="刪除卡片"
             >
               🗑️
+            </button>
+          )}
+          {onUnassign && (
+            <button
+              className="card-edit-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`確定要把「${card.title}」退回候選區嗎？`)) {
+                  onUnassign(card.id);
+                }
+              }}
+              title="退回候選區"
+            >
+              🎒
             </button>
           )}
           {onToggle && (
@@ -234,7 +269,7 @@ function SortableCardShell({ card, children }) {
   });
 }
 
-export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onDelete, onAddComment, onEditComment, onDeleteComment }) {
+export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onDelete, onUnassign, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
   const [expanded, setExpanded] = useState(false);
 
   const showCompact = !inPool && !expanded && !isDragOverlay;
@@ -251,6 +286,8 @@ export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit,
         onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
         onEdit={showActions ? onEdit : undefined}
         onDelete={showActions ? onDelete : undefined}
+        onUnassign={showActions && !inPool ? onUnassign : undefined}
+        onOpenMap={!isDragOverlay ? onOpenMap : undefined}
         onAddComment={showActions ? onAddComment : undefined}
         onEditComment={showActions ? onEditComment : undefined}
         onDeleteComment={showActions ? onDeleteComment : undefined}

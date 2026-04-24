@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import Card from './Card';
 
-export default function CandidatePool({ cardIds, cardMap, panelOpen, currentDayLabel, onClosePanel, onAddToZone, onAddNew, onAiGenerate, onEdit, onDeleteCard, onAddComment, onEditComment, onDeleteComment }) {
+export default function CandidatePool({ cardIds, cardMap, panelOpen, currentDayLabel, onClosePanel, onAddToZone, onAddNew, onAiGenerate, onEdit, onDeleteCard, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled' });
 
   return (
@@ -37,7 +37,7 @@ export default function CandidatePool({ cardIds, cardMap, panelOpen, currentDayL
             if (!card) return null;
             return (
               <div key={id} className="pool-card-item">
-                <Card card={card} inPool onEdit={onEdit} onDelete={onDeleteCard} onAddComment={onAddComment} onEditComment={onEditComment} onDeleteComment={onDeleteComment} />
+                <Card card={card} inPool onEdit={onEdit} onDelete={onDeleteCard} onOpenMap={onOpenMap} onAddComment={onAddComment} onEditComment={onEditComment} onDeleteComment={onDeleteComment} />
                 {onAddToZone && (
                   <div className="mobile-quick-add-row">
                     <button onClick={() => onAddToZone(id, 'morning')}>☀️ 早</button>

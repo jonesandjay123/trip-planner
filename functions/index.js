@@ -790,24 +790,25 @@ exports.jarvisListTripBackups = onCall({secrets: [JARVIS_SHARED_SECRET]}, async 
   const limit = Math.max(1, Math.min(Number.isFinite(rawLimit) ? rawLimit : 10, 50));
   const snap = await db.collection("trips")
       .where("backupKind", "==", "jarvis-trip-planner-backup")
-      .orderBy("createdAtMs", "desc")
-      .limit(limit)
+      .limit(50)
       .get();
+  const backups = snap.docs.map((doc) => {
+    const data = doc.data() || {};
+    return {
+      backupId: doc.id,
+      path: `trips/${doc.id}`,
+      createdAt: data.createdAt || "",
+      createdAtMs: data.createdAtMs || 0,
+      mode: data.mode || "",
+      label: data.label || "",
+      reason: data.reason || "",
+      summary: data.summary || {},
+    };
+  }).sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)).slice(0, limit);
   return {
     ok: true,
-    count: snap.size,
-    backups: snap.docs.map((doc) => {
-      const data = doc.data() || {};
-      return {
-        backupId: doc.id,
-        path: `trips/${doc.id}`,
-        createdAt: data.createdAt || "",
-        mode: data.mode || "",
-        label: data.label || "",
-        reason: data.reason || "",
-        summary: data.summary || {},
-      };
-    }),
+    count: backups.length,
+    backups,
   };
 });
 

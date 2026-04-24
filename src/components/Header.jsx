@@ -28,6 +28,7 @@ export default function Header({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tripName);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   function handleDoubleClick() {
     setDraft(tripName);
@@ -50,30 +51,46 @@ export default function Header({
     }
   }
 
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
+  }
+
+  function runMobileAction(action) {
+    action?.();
+    closeMobileMenu();
+  }
+
   return (
     <header className="header">
       <div className="header-main">
-        <span className="header-icon">✈️</span>
-        {editing ? (
-          <input
-            className="trip-name-input"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          />
-        ) : (
-          <h1 className="trip-name" onDoubleClick={handleDoubleClick} title="雙擊編輯">
-            {tripName}
-          </h1>
-        )}
-        
-        <span className="date-range">
+        <div className="header-title-block">
+          <span className="header-icon">✈️</span>
+          <div className="header-title-text">
+            {editing ? (
+              <input
+                className="trip-name-input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                autoFocus
+              />
+            ) : (
+              <h1 className="trip-name" onDoubleClick={handleDoubleClick} title="雙擊編輯">
+                {tripName}
+              </h1>
+            )}
+            <span className="date-range mobile-inline-date">
+              {formatDate(startDate)} → {formatDate(endDate)}
+            </span>
+          </div>
+        </div>
+
+        <span className="date-range desktop-date-range">
           {formatDate(startDate)} → {formatDate(endDate)}
         </span>
 
-        <div className="header-actions">
+        <div className="header-actions desktop-header-actions">
           <button className="theme-toggle" onClick={onToggleDark} title={darkMode ? '切換淺色模式' : '切換深色模式'}>
             {darkMode ? '☀️' : '🌙'}
           </button>
@@ -85,10 +102,25 @@ export default function Header({
           </button>
         </div>
 
-        {planSelector}
+        <div className="header-plan-row">
+          {planSelector}
+        </div>
+
+        <div className="mobile-header-status">
+          {authLoading ? (
+            <span className="auth-mode viewer">Checking</span>
+          ) : user ? (
+            <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner' : 'Viewer'}</span>
+          ) : (
+            <span className="auth-mode viewer">Viewer</span>
+          )}
+          <button className="mobile-menu-trigger" onClick={() => setMobileMenuOpen((v) => !v)} aria-label="更多操作">
+            ⋯
+          </button>
+        </div>
       </div>
 
-      <div className="header-auth-status compact">
+      <div className="header-auth-status compact desktop-auth-status">
         {authLoading ? (
           <>
             <span className="auth-mode viewer">Checking</span>
@@ -106,6 +138,19 @@ export default function Header({
           </>
         )}
       </div>
+
+      {mobileMenuOpen && (
+        <div className="mobile-header-menu">
+          <button onClick={() => runMobileAction(onToggleDark)}>{darkMode ? '☀️ 淺色模式' : '🌙 深色模式'}</button>
+          <button onClick={() => runMobileAction(onExport)}>📋 匯出行程</button>
+          <button onClick={() => runMobileAction(onReset)}>🔄 重置資料</button>
+          {user ? (
+            <button onClick={() => runMobileAction(onLogout)}>🚪 登出</button>
+          ) : (
+            <button onClick={() => runMobileAction(onLogin)}>🔐 登入</button>
+          )}
+        </div>
+      )}
     </header>
   );
 }

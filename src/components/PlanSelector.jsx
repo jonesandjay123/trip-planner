@@ -18,11 +18,13 @@ export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, o
         ))}
       </select>
 
-      <button className="btn btn-clone" onClick={onClone} title="複製當前方案">
-        📑 Clone
+      <button className="btn btn-clone" onClick={onClone} title="複製當前方案" aria-label="複製當前方案">
+        <span className="desktop-action-text">📑 Clone</span>
+        <span className="mobile-action-icon">📑</span>
       </button>
-      <button className="btn btn-clone" onClick={onResetPlan} title="清空當前方案排程">
-        🧹 清空
+      <button className="btn btn-clone" onClick={onResetPlan} title="清空當前方案排程" aria-label="清空當前方案排程">
+        <span className="desktop-action-text">🧹 清空</span>
+        <span className="mobile-action-icon">🧹</span>
       </button>
 
       {plans.length > 1 && (

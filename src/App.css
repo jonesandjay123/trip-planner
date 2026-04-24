@@ -347,51 +347,29 @@ body {
   color: #222;
   background: white;
 }
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.plan-item-actions {
+.plan-chip-list {
   display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.15s;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.plan-selector-item:hover .plan-item-actions {
-  opacity: 1;
-}
-
-.plan-selector-item.active .plan-item-actions {
-  opacity: 0.8;
-}
-
-.plan-item-btn {
-  background: none;
-  border: none;
+.plan-chip {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 13px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: background 0.15s;
 }
 
-.plan-item-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.plan-rename-input {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 2px 6px;
-  border: 2px solid var(--accent);
-  border-radius: 4px;
-  outline: none;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  min-width: 0;
+.plan-chip.active {
+  background: white;
+  color: var(--accent-hover);
+  border-color: white;
+  font-weight: 700;
 }
 
 .btn-clone {

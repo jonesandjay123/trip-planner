@@ -3,19 +3,20 @@ import React from 'react';
 export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, onResetPlan }) {
   return (
     <div className="plan-selector">
-      <div className="plan-selector-label">📋 方案：</div>
-      <div className="plan-chip-list">
+      <label className="plan-selector-label" htmlFor="plan-selector-native">📋 方案：</label>
+      <select
+        id="plan-selector-native"
+        className="plan-selector-native"
+        value={activePlanId || ''}
+        onChange={(event) => onSwitch(event.target.value)}
+        disabled={plans.length === 0}
+      >
         {plans.map((plan) => (
-          <button
-            key={plan.id}
-            className={`plan-chip ${plan.id === activePlanId ? 'active' : ''}`}
-            onClick={() => onSwitch(plan.id)}
-            type="button"
-          >
+          <option key={plan.id} value={plan.id}>
             {plan.name}
-          </button>
+          </option>
         ))}
-      </div>
+      </select>
 
       <button className="btn btn-clone" onClick={onClone} title="複製當前方案">
         📑 Clone

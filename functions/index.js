@@ -160,14 +160,17 @@ function clonePlanObject(plan, nextId, nextName) {
 
 function sanitizeTripState(trip) {
   const plans = trip && typeof trip.plans === "object" && trip.plans ? trip.plans : {};
-  const validPlanIds = new Set(Object.keys(plans));
-  const planOrderSource = Array.isArray(trip.planOrder) ? trip.planOrder : Object.keys(plans);
-  const planOrder = planOrderSource.filter((id) => validPlanIds.has(id));
+  const existingPlanIds = new Set(Object.keys(plans));
+  const hasPlanOrder = Array.isArray(trip.planOrder) && trip.planOrder.length > 0;
+  const planOrderSource = hasPlanOrder ? trip.planOrder : Object.keys(plans);
+  const planOrder = [...new Set(planOrderSource)].filter((id) => existingPlanIds.has(id));
+  const validPlanIds = new Set(planOrder);
   const fallbackActive = planOrder[0] || null;
   const activePlanId = validPlanIds.has(trip.tripMeta?.activePlanId) ? trip.tripMeta.activePlanId : fallbackActive;
 
   const cleanedPlans = {};
   for (const [planId, plan] of Object.entries(plans)) {
+    if (!validPlanIds.has(planId)) continue;
     const nextDays = {};
     for (const [date, zones] of Object.entries(plan.days || {})) {
       const nextZones = {};
@@ -714,11 +717,16 @@ exports.jarvisInspectTrip = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (req
     };
   });
 
+  const allPlanIds = Object.keys(trip.plans || {});
+  const orphanPlanIds = allPlanIds.filter((planId) => !planOrder.includes(planId));
+
   return {
     ok: true,
     tripMeta: trip.tripMeta || {},
     activePlanId,
     planCount: plans.length,
+    rawPlanCount: allPlanIds.length,
+    orphanPlanIds,
     cardCount: Object.keys(trip.cards || {}).length,
     plans,
   };
@@ -813,6 +821,7 @@ exports.jarvisRepairTripState = onCall({secrets: [JARVIS_SHARED_SECRET]}, async 
     ok: true,
     activePlanId: repairedTrip.tripMeta?.activePlanId || null,
     planOrder: repairedTrip.planOrder,
+    removedPlanIds: Object.keys(currentTrip.plans || {}).filter((planId) => !Object.keys(repairedTrip.plans || {}).includes(planId)),
   };
 });
 

@@ -117,7 +117,7 @@ export default function Header({
           {authLoading ? (
             <span className="auth-mode viewer">Checking</span>
           ) : user ? (
-            <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner' : 'Viewer'}</span>
+            <span className={`auth-mode ${isOwner ? 'owner' : 'editor'}`}>{isOwner ? 'Owner' : 'Editor'}</span>
           ) : (
             <span className="auth-mode viewer">Viewer</span>
           )}
@@ -134,7 +134,7 @@ export default function Header({
           </>
         ) : user ? (
           <>
-            <span className={`auth-mode ${isOwner ? 'owner' : 'viewer'}`}>{isOwner ? 'Owner' : 'Viewer'}</span>
+            <span className={`auth-mode ${isOwner ? 'owner' : 'editor'}`}>{isOwner ? 'Owner' : 'Editor'}</span>
             <span className="auth-email compact" title={user.email || 'unknown user'}>{user.email || 'unknown user'}</span>
             <button className="btn btn-auth compact" onClick={onLogout}>登出</button>
           </>

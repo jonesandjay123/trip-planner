@@ -129,6 +129,14 @@ export default function App() {
   const isOwner = Boolean(user?.email && user.email.toLowerCase() === ownerEmail.toLowerCase());
   const canEdit = Boolean(user);
 
+  async function handleLogin() {
+    const result = await signInWithGoogle();
+    if (result?.user) {
+      setUser(result.user);
+      setAuthLoading(false);
+    }
+  }
+
   const cardMap = state.cards || {};
   const activePlan = useMemo(() => getActivePlan(state), [state]);
   const activeDays = useMemo(() => getPlanDays(activePlan), [activePlan]);
@@ -669,7 +677,7 @@ export default function App() {
           authLoading={authLoading}
           user={user}
           isOwner={isOwner}
-          onLogin={() => signInWithGoogle().catch((error) => console.error('❌ Google sign-in failed:', error))}
+          onLogin={() => handleLogin().catch((error) => console.error('❌ Google sign-in failed:', error))}
           onLogout={() => logOut().catch((error) => console.error('❌ Logout failed:', error))}
           planSelector={
             <PlanSelector

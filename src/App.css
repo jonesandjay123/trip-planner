@@ -262,7 +262,8 @@ body {
   font-weight: 700;
 }
 
-.auth-mode.owner {
+.auth-mode.owner,
+.auth-mode.editor {
   background: rgba(16, 185, 129, 0.18);
   color: #eafff7;
 }

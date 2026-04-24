@@ -41,6 +41,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
           )}
           <button
             className="card-expand-btn"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
             title="展開詳情"
           >
@@ -73,6 +74,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
           {onEdit && (
             <button
               className="card-edit-btn"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onEdit(card); }}
               title="編輯"
             >
@@ -82,6 +84,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
           {onDelete && (
             <button
               className="card-edit-btn card-delete-btn"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 if (window.confirm(`確定要刪除「${card.title}」嗎？`)) {
@@ -96,6 +99,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
           {onToggle && (
             <button
               className="card-expand-btn"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onToggle(); }}
               title="收合"
             >
@@ -226,7 +230,7 @@ function SortableCardShell({ card, children }) {
   };
 
   return children({
-    shellProps: { ref: setNodeRef, style, className: 'sortable-card-shell' },
+    shellProps: { ref: setNodeRef, style, className: 'sortable-card-shell', ...attributes, ...listeners },
     dragHandleProps: { ref: setActivatorNodeRef, ...attributes, ...listeners },
   });
 }

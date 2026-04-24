@@ -241,6 +241,13 @@ export default function App() {
 
   function handleDeletePlan(planId) {
     if (!requireEditable()) return;
+    if (!planId) return;
+    const planName = state.plans?.[planId]?.name || planId;
+    if ((state.planOrder || []).length <= 1) {
+      window.alert('只剩一個方案，不能刪除。');
+      return;
+    }
+    if (!window.confirm(`確定要刪除目前方案「${planName}」嗎？這不會刪除其他方案或候選卡。`)) return;
     setState((prev) => {
       if (prev.planOrder.length <= 1) return prev;
       const newPlanOrder = prev.planOrder.filter((id) => id !== planId);
@@ -588,13 +595,6 @@ export default function App() {
     }
   }
 
-  function handleReset() {
-    if (!requireEditable()) return;
-    if (window.confirm('確定要重置所有資料嗎？')) {
-      resetState(createInitialState());
-    }
-  }
-
   function handleDayLabelChange(date, label) {
     if (!requireEditable()) return;
     updateActivePlan((plan) => ({
@@ -658,7 +658,9 @@ export default function App() {
           endDate={state.tripMeta.endDate}
           onTripNameChange={handleTripNameChange}
           onExport={handleExport}
-          onReset={handleReset}
+          onDeleteActivePlan={() => handleDeletePlan(state.tripMeta.activePlanId)}
+          canDeletePlan={(state.planOrder || []).length > 1}
+          activePlanName={activePlan?.name || ''}
           darkMode={darkMode}
           onToggleDark={() => setDarkMode((v) => !v)}
           authLoading={authLoading}
@@ -674,7 +676,7 @@ export default function App() {
               onClone={handleClonePlan}
               onRename={handleRenamePlan}
               onDelete={handleDeletePlan}
-              onResetPlan={handleResetPlan}
+              canDeletePlan={(state.planOrder || []).length > 1}
             />
           }
         />

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, onResetPlan }) {
+export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, onDelete, canDeletePlan }) {
   return (
     <div className="plan-selector">
       <label className="plan-selector-label" htmlFor="plan-selector-native">📋 方案：</label>
@@ -22,9 +22,15 @@ export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, o
         <span className="desktop-action-text">📑 Clone</span>
         <span className="mobile-action-icon">📑</span>
       </button>
-      <button className="btn btn-clone" onClick={onResetPlan} title="清空當前方案排程" aria-label="清空當前方案排程">
-        <span className="desktop-action-text">🧹 清空</span>
-        <span className="mobile-action-icon">🧹</span>
+      <button
+        className="btn btn-clone btn-delete-plan"
+        onClick={() => onDelete?.(activePlanId)}
+        disabled={!canDeletePlan}
+        title={canDeletePlan ? '刪除目前方案' : '只剩一個方案，不能刪除'}
+        aria-label="刪除目前方案"
+      >
+        <span className="desktop-action-text">🗑️ 刪方案</span>
+        <span className="mobile-action-icon">🗑️</span>
       </button>
 
       {plans.length > 1 && (

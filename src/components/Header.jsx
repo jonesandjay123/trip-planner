@@ -16,7 +16,9 @@ export default function Header({
   endDate,
   onTripNameChange,
   onExport,
-  onReset,
+  onDeleteActivePlan,
+  canDeletePlan,
+  activePlanName,
   darkMode,
   onToggleDark,
   planSelector,
@@ -97,8 +99,13 @@ export default function Header({
           <button className="btn btn-export" onClick={onExport}>
             📋 匯出
           </button>
-          <button className="btn btn-reset" onClick={onReset}>
-            🔄 重置
+          <button
+            className="btn btn-reset"
+            onClick={onDeleteActivePlan}
+            disabled={!canDeletePlan}
+            title={canDeletePlan ? `刪除目前方案：${activePlanName || ''}` : '只剩一個方案，不能刪除'}
+          >
+            🗑️ 刪方案
           </button>
         </div>
 
@@ -143,7 +150,9 @@ export default function Header({
         <div className="mobile-header-menu">
           <button onClick={() => runMobileAction(onToggleDark)}>{darkMode ? '☀️ 淺色模式' : '🌙 深色模式'}</button>
           <button onClick={() => runMobileAction(onExport)}>📋 匯出行程</button>
-          <button onClick={() => runMobileAction(onReset)}>🔄 重置資料</button>
+          <button disabled={!canDeletePlan} onClick={() => runMobileAction(onDeleteActivePlan)}>
+            🗑️ {canDeletePlan ? `刪除方案${activePlanName ? `：${activePlanName}` : ''}` : '只剩一個方案，不能刪除'}
+          </button>
           {user ? (
             <button onClick={() => runMobileAction(onLogout)}>🚪 登出</button>
           ) : (

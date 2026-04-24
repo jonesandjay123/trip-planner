@@ -698,6 +698,192 @@ exports.jarvisRenameTrip = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (requ
   return {ok: true, title};
 });
 
+
+function slugifyBackupLabel(value) {
+  return String(value || "manual")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 64) || "manual";
+}
+
+function timestampBackupId() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+function countScheduledCards(plan) {
+  return Object.values(plan?.days || {}).reduce((sum, zones) => {
+    return sum + Object.values(zones || {}).reduce((inner, ids) => inner + (Array.isArray(ids) ? ids.length : 0), 0);
+  }, 0);
+}
+
+function summarizeTripForBackup(trip) {
+  const plans = trip.plans && typeof trip.plans === "object" ? trip.plans : {};
+  const planOrder = Array.isArray(trip.planOrder) && trip.planOrder.length ? trip.planOrder : Object.keys(plans);
+  return {
+    title: trip.tripMeta?.title || "",
+    activePlanId: trip.tripMeta?.activePlanId || planOrder[0] || null,
+    cardCount: Object.keys(trip.cards || {}).length,
+    planCount: planOrder.filter((planId) => plans[planId]).length,
+    rawPlanCount: Object.keys(plans).length,
+    plans: planOrder.filter((planId) => plans[planId]).map((planId) => ({
+      id: planId,
+      name: plans[planId]?.name || planId,
+      scheduledCardCount: countScheduledCards(plans[planId]),
+    })),
+    orphanPlanIds: Object.keys(plans).filter((planId) => !planOrder.includes(planId)),
+  };
+}
+
+function buildTripBackupDoc(trip, actor, {label, reason, mode} = {}) {
+  const safeLabel = slugifyBackupLabel(label || reason || mode || "manual");
+  const backupId = `backup_${timestampBackupId()}_${safeLabel}`;
+  return {
+    backupId,
+    schemaVersion: 1,
+    backupKind: "jarvis-trip-planner-backup",
+    sourcePath: TRIP_DOC_PATH,
+    createdAt: nowIso(),
+    createdAtMs: Date.now(),
+    createdByUid: actor.uid,
+    createdByEmail: actor.email,
+    createdByName: actor.displayName,
+    mode: mode || "manual",
+    label: String(label || ""),
+    reason: String(reason || ""),
+    summary: summarizeTripForBackup(trip),
+    trip,
+  };
+}
+
+async function createTripBackup(actor, options = {}) {
+  const trip = await getTripStateOrThrow();
+  const backup = buildTripBackupDoc(trip, actor, options);
+  await db.collection("trips").doc(backup.backupId).set(backup);
+  return backup;
+}
+
+
+exports.jarvisCreateTripBackup = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  const actor = assertJarvisCaller(request);
+  const label = String(request.data?.label || "manual").trim();
+  const reason = String(request.data?.reason || "").trim();
+  const backup = await createTripBackup(actor, {label, reason, mode: "manual"});
+  await appendActivityLog({action: "create-trip-backup", backupId: backup.backupId, actorEmail: actor.email});
+  return {
+    ok: true,
+    backupId: backup.backupId,
+    path: `trips/${backup.backupId}`,
+    createdAt: backup.createdAt,
+    label: backup.label,
+    reason: backup.reason,
+    summary: backup.summary,
+  };
+});
+
+exports.jarvisListTripBackups = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  assertJarvisCaller(request);
+  const rawLimit = Number(request.data?.limit || 10);
+  const limit = Math.max(1, Math.min(Number.isFinite(rawLimit) ? rawLimit : 10, 50));
+  const snap = await db.collection("trips")
+      .where("backupKind", "==", "jarvis-trip-planner-backup")
+      .orderBy("createdAtMs", "desc")
+      .limit(limit)
+      .get();
+  return {
+    ok: true,
+    count: snap.size,
+    backups: snap.docs.map((doc) => {
+      const data = doc.data() || {};
+      return {
+        backupId: doc.id,
+        path: `trips/${doc.id}`,
+        createdAt: data.createdAt || "",
+        mode: data.mode || "",
+        label: data.label || "",
+        reason: data.reason || "",
+        summary: data.summary || {},
+      };
+    }),
+  };
+});
+
+exports.jarvisInspectTripBackup = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  assertJarvisCaller(request);
+  const backupId = String(request.data?.backupId || "").trim();
+  if (!backupId) throw new HttpsError("invalid-argument", "backupId is required");
+  const snap = await db.collection("trips").doc(backupId).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Backup not found");
+  const backup = snap.data() || {};
+  if (backup.backupKind !== "jarvis-trip-planner-backup") {
+    throw new HttpsError("failed-precondition", "Document is not a Jarvis trip backup");
+  }
+  return {
+    ok: true,
+    backupId: snap.id,
+    path: `trips/${snap.id}`,
+    createdAt: backup.createdAt || "",
+    mode: backup.mode || "",
+    label: backup.label || "",
+    reason: backup.reason || "",
+    summary: backup.summary || {},
+    tripMeta: backup.trip?.tripMeta || {},
+    planOrder: backup.trip?.planOrder || Object.keys(backup.trip?.plans || {}),
+  };
+});
+
+exports.jarvisRestoreTripBackup = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
+  const actor = assertJarvisCaller(request);
+  const backupId = String(request.data?.backupId || "").trim();
+  if (!backupId) throw new HttpsError("invalid-argument", "backupId is required");
+
+  const snap = await db.collection("trips").doc(backupId).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Backup not found");
+  const backup = snap.data() || {};
+  if (backup.backupKind !== "jarvis-trip-planner-backup" || !backup.trip) {
+    throw new HttpsError("failed-precondition", "Document is not a restorable Jarvis trip backup");
+  }
+
+  const safetyBackup = await createTripBackup(actor, {
+    label: `auto-before-restore-${backupId}`,
+    reason: `Automatic safety backup before restoring ${backupId}`,
+    mode: "auto-before-restore",
+  });
+
+  const restoredTrip = {
+    ...backup.trip,
+    tripMeta: {
+      ...(backup.trip.tripMeta || {}),
+      updatedAt: nowIso(),
+      updatedByEmail: actor.email,
+      updatedByUid: actor.uid,
+      updatedByName: actor.displayName,
+      restoredFromBackupId: backupId,
+      restoredAt: nowIso(),
+    },
+  };
+
+  await tripRef().set(restoredTrip, {merge: false});
+  await appendActivityLog({
+    action: "restore-trip-backup",
+    backupId,
+    safetyBackupId: safetyBackup.backupId,
+    actorEmail: actor.email,
+  });
+
+  const finalTrip = await getTripStateOrThrow();
+  return {
+    ok: true,
+    restoredFromBackupId: backupId,
+    safetyBackupId: safetyBackup.backupId,
+    safetyBackupPath: `trips/${safetyBackup.backupId}`,
+    summary: summarizeTripForBackup(finalTrip),
+  };
+});
+
 exports.jarvisInspectTrip = onCall({secrets: [JARVIS_SHARED_SECRET]}, async (request) => {
   assertJarvisCaller(request);
   const trip = await getTripStateOrThrow();

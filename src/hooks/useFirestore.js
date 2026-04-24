@@ -4,7 +4,7 @@ import { db } from '../firebase';
 
 const FIRESTORE_DOC = 'trips/main';
 const LOCAL_CACHE_KEY = 'trip-planner-state';
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 200;
 
 export function useFirestore(initialValue) {
   const [state, setState] = useState(() => {
@@ -28,7 +28,12 @@ export function useFirestore(initialValue) {
   const lastWriteTime = useRef(0);
   const dragging = useRef(false);
   const pendingWrite = useRef(false);
+  const latestState = useRef(state);
   const WRITE_COOLDOWN = 1500;
+
+  useEffect(() => {
+    latestState.current = state;
+  }, [state]);
 
   // --- Real-time listener (onSnapshot) ---
   useEffect(() => {
@@ -65,6 +70,37 @@ export function useFirestore(initialValue) {
     return () => unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const writeLatestState = useCallback((reason = 'manual flush') => {
+    if (!initialized.current) return;
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+      debounceTimer.current = null;
+    }
+    lastWriteTime.current = Date.now();
+    setDoc(doc(db, FIRESTORE_DOC), latestState.current)
+      .then(() => console.log(`☁️ Synced to Firestore (${reason})`))
+      .catch((err) => console.error('❌ Failed to sync:', err));
+  }, []);
+
+  // Flush pending state when mobile browsers background/refresh the page.
+  useEffect(() => {
+    function handlePageHide() {
+      writeLatestState('page hide');
+    }
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        writeLatestState('visibility hidden');
+      }
+    }
+
+    window.addEventListener('pagehide', handlePageHide);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [writeLatestState]);
+
   // --- Debounced sync to Firestore ---
   useEffect(() => {
     if (!initialized.current) return;
@@ -88,10 +124,7 @@ export function useFirestore(initialValue) {
     }
 
     debounceTimer.current = setTimeout(() => {
-      lastWriteTime.current = Date.now();
-      setDoc(doc(db, FIRESTORE_DOC), state)
-        .then(() => console.log('☁️ Synced to Firestore'))
-        .catch((err) => console.error('❌ Failed to sync:', err));
+      writeLatestState('debounced');
     }, DEBOUNCE_MS);
 
     return () => {
@@ -99,7 +132,7 @@ export function useFirestore(initialValue) {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [state]);
+  }, [state, writeLatestState]);
 
   const resetState = useCallback((newState) => {
     localStorage.removeItem(LOCAL_CACHE_KEY);
@@ -116,15 +149,14 @@ export function useFirestore(initialValue) {
       try {
         const latest = JSON.parse(localStorage.getItem(LOCAL_CACHE_KEY));
         if (latest) {
-          setDoc(doc(db, FIRESTORE_DOC), latest)
-            .then(() => console.log('☁️ Synced after drag end'))
-            .catch((err) => console.error('❌ Failed to sync:', err));
+          latestState.current = latest;
+          writeLatestState('drag end');
         }
       } catch (e) {
         // ignore
       }
     }
-  }, []);
+  }, [writeLatestState]);
 
   return [state, setState, resetState, loading, setDragging];
 }

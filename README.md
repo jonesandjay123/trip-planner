@@ -4,7 +4,7 @@
 
 👉 [GitHub Pages 鏡像（靜態版）](https://jonesandjay123.github.io/trip-planner/)
 
-> 從靜態 MVP 到 Firebase 即時協作到 AI 生成候選卡，兩天內完成。核心協作功能已完整，AI 行程推薦已上線。
+> 從靜態 MVP 到 Firebase 即時協作、AI 生成候選卡、手機旅途中模式，再到 Leaflet 地圖預覽。核心協作與旅行中使用流程已完整，AI 推薦與地圖 MVP 已上線。
 
 ## 🎯 用途
 
@@ -32,6 +32,8 @@
 - 🤖 **AI 推薦行程** — 輸入主題（如「東京二郎系拉麵」），Gemini 自動生成候選卡片
 - 🔢 **可選生成數量** — 1 / 2 / 3 / 5 / 8 張，預設 2 張
 - 💡 **預設建議** — 一鍵選擇常見主題快速生成
+- 📍 **AI location candidate** — prompt/schema 要求 Gemini 對實體景點回傳 optional `location`；function 只保存合法 lat/lng，標記 `source: "ai"` 且 confidence 不預設 high
+- ✨ **生成中 glow** — AI 生成期間整個 modal 外框會顯示 rotating conic-gradient glow
 - 🔒 **Cloud Function proxy** — API key 安全存放在 server side，不暴露前端
 
 ### 雲端同步
@@ -49,7 +51,11 @@
 - 👤 **暱稱系統** — 首次進站詢問暱稱，留言自動署名；留空則隨機生成（如「冒險的🐻熊 #42」）
 - 📋 **匯出 JSON** — 匯出當前方案到剪貼簿
 - 🛡️ **移除全域重置入口** — 避免誤觸覆蓋整份 Firestore trip document
-- 🗺️ **每日地圖 Modal** — 卡片可 optional 填 lat/lng/address；每一天可用 Leaflet + OpenStreetMap 顯示已定位景點 marker、順序連線與未定位清單
+- 🗺️ **每日地圖 Modal** — 卡片可 optional 填 lat/lng/address；每一天可用 Leaflet + OpenStreetMap 顯示已定位景點 marker、編號、popup 與未定位清單
+- 📍 **單卡地圖預覽** — 候選卡 / 已排程卡可直接打開單一景點地圖預覽，並保留 Google Maps 搜尋與複製標題
+- 🧭 **地圖互動** — 點右側行程列表會 highlight 對應 marker 並 fly-to；點 marker 也會同步選中列表項
+- 🧼 **乾淨複製標題** — 地圖 modal 的「複製標題」會自動過濾 emoji，方便貼到搜尋 / 筆記工具
+- 🎒 **手機退回候選區** — 已排程卡展開後可按 🎒，confirm 後只從 active plan 移除，不刪卡片
 
 ## 📱 Mobile UX 模式（2026-04）
 
@@ -64,7 +70,8 @@
 2. **Last viewed day**：使用 `localStorage` key `trip-planner-mobile-day` 記住上次停在哪一天，不硬算真實日期。
 3. **Compact Header**：上方橘色區塊壓縮成核心資訊 + `⋯` menu，低頻操作收合。
 4. **Candidate Panel**：底部 `🎒 候選` 打開 slide-up panel；候選卡可用 `早/午/晚/彈` 快速加入目前日期。
-5. **DnD regression rule**：桌面版允許從卡片本體拖曳；卡片內編輯 / 刪除 / 展開 / 留言控制會阻止 pointer 事件冒泡，避免誤拖。手機版仍保留 `☰` handle 與快速加入按鈕，任何 mobile DnD 調整都必須同步回歸測桌面拖曳。
+5. **Mobile unassign**：已排程卡片展開後可按 `🎒` 退回候選區，避免手機上只能靠拖曳移回。
+6. **DnD regression rule**：桌面版允許從卡片本體拖曳；卡片內編輯 / 刪除 / 展開 / 留言控制會阻止 pointer 事件冒泡，避免誤拖。手機版仍保留 `☰` handle 與快速加入按鈕，任何 mobile DnD 調整都必須同步回歸測桌面拖曳。
 
 ### Destructive action policy
 
@@ -130,7 +137,8 @@ state = {
         address: "2 Chome-3-1 Asakusa, Taito City, Tokyo",
         lat: 35.714765,
         lng: 139.796655,
-        source: "manual",
+        source: "manual" | "ai" | "geocoding",
+        confidence: "high" | "medium" | "low",
         updatedAt: "2026-04-24T...Z"
       }
     },
@@ -163,7 +171,9 @@ state = {
 - **dayLabels 跟 plan 走** — 每個方案可有自己的每日主題標籤
 - **Comments 跟卡片走** — 不跟方案走
 - **AI 卡片標記 source: "gemini"** — 區分手動新增和 AI 生成
-- **Location optional** — 有 `location.lat/lng` 的卡片會出現在 day map；沒有座標的卡片不阻擋排程，會列在地圖 modal 的「尚未定位」清單
+- **Location optional** — 有 `location.lat/lng` 的卡片會出現在 day map / single-card map preview；沒有座標的卡片不阻擋排程，會列在地圖 modal 的「尚未定位」清單
+- **Location updates are narrow** — Jarvis / callable location patches 只應更新 `cards[cardId].location`，不要 import/restore 整份 export JSON，也不要碰 `plans` / `days` / `cardOrder`
+- **AI coordinates are candidates** — Gemini 生成的座標標為 `source: "ai"`；只有明確 POI 才可 high confidence，區域代表點用 medium/low，未來 geocoding 驗證後再標 `source: "geocoding"`
 
 ## 🚀 Getting Started
 
@@ -216,6 +226,7 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 | 拖放 | [@dnd-kit](https://dndkit.com/) |
 | 後端/資料庫 | [Firebase](https://firebase.google.com/)（Firestore + Hosting + Cloud Functions） |
 | AI | [Gemini API](https://ai.google.dev/)（透過 Cloud Function proxy） |
+| 地圖 | [Leaflet](https://leafletjs.com/) + [React Leaflet](https://react-leaflet.js.org/) + OpenStreetMap public tile MVP |
 | 快取 | localStorage（秒開 + 離線 fallback） |
 | 樣式 | Plain CSS + CSS Variables（深色/淺色模式） |
 | 部署 | Firebase Hosting（主要）+ GitHub Pages（鏡像） |
@@ -260,10 +271,19 @@ VITE_OWNER_EMAIL=jonesandjay123@gmail.com
 - [x] Jarvis 第二批排程 callable mutations（移動卡片 / clone-delete-reset plan / rename）
 - [x] Jarvis-only Firestore backup callables（create / inspect / restore `trips/backup_*`）
 
-### 🔜 Phase 4 — 地圖 + 進階功能
+### ✅ Phase 4 — 地圖 MVP + 旅行中操作（完成）
 - [x] 🗺️ **地圖整合 MVP** — 卡片 optional 標記經緯度，每日 modal 顯示 Leaflet + OpenStreetMap marker
-- [x] 📍 **每日路線視覺化 MVP** — 按日期用行程順序 marker + 直線 polyline 顯示分布
+- [x] 🔢 **Marker 編號 / popup / fit bounds** — 以當日行程順序標號，popup 顯示卡片資訊
+- [x] 🎯 **列表 ↔ marker 選取同步** — 點列表 fly-to / highlight 對應 marker，點 marker 同步選中列表
+- [x] 🔗 **外部動作** — Google Maps 搜尋與複製標題，複製時過濾 emoji
+- [x] 📍 **單卡地圖預覽** — 候選卡與已排程卡都能開單一地圖預覽
+- [x] 🎒 **手機退回候選區** — 已排程卡 confirm 後從 active plan 移除但不刪卡
+- [x] 🤖 **AI location schema** — AI 生成小卡可回傳 optional coordinates，保存時 validate 並標 `source: "ai"`
+
+### 🔜 Phase 5 — 進階功能
 - [ ] 🧭 **AI 排程建議** — 根據地理位置 + 營業時間自動排出最順路線
+- [ ] 🧩 **Geoapify / MapTiler geocoding** — server-side callable + cache + 候選結果選擇
+- [ ] 📏 **距離提醒** — 先用 haversine 或簡單地理距離提醒相鄰點太遠；真實 routing 之後再接
 - [ ] 🔗 分享連結（`/trip/{tripId}` 支援多趟旅行）
 - [ ] 🔒 Firestore rules 進一步收緊 + 權限分流
 - [ ] 🌍 多 trip 支援（多 date range、多 owner/member、多帳號使用）
@@ -365,6 +385,9 @@ node scripts/backup-trip.mjs --trip tokyo-may-2026 --label before-large-change
 | onSnapshot + debounce + drag pause | 即時同步但不會被拖曳中間狀態污染 |
 | Cloud Function proxy for Gemini | API key 不暴露前端，server side 驗證 + normalize |
 | AI 只生成候選卡，不自動排程 | 保留使用者拖拉排程的核心樂趣 |
+| AI location 可用但不盲信 | LLM 座標可能 hallucinate；只作 candidate，保存時標 `source: ai` + confidence |
+| 地圖 MVP 不畫直線 polyline | 沒有真實 routing 的直線容易誤導且礙眼；先用 marker 分布與 Google Maps 外連 |
+| Leaflet + OSM public tile 先行 | 私人工具 MVP 不需要 API key；未來公開/高流量再換 MapTiler/Geoapify/Stadia/自架 tile |
 | Google Auth + 暱稱並存 | Auth 決定寫入權限；暱稱保留給留言與輕量協作身份 |
 | Cards 共用、Plans 分版本 | Clone 只複製排列不複製卡片，保持資料一致性 |
 | 候選池動態計算 | 避免 plan 之間互相污染，Firestore 也不用同步這個欄位 |

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
+import React, { useEffect, useMemo, useState } from 'react';
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -19,13 +19,13 @@ function getCardLocation(card) {
   return { lat, lng };
 }
 
-function createNumberIcon(index) {
+function createNumberIcon(index, active = false) {
   return L.divIcon({
-    className: 'map-number-marker',
+    className: `map-number-marker ${active ? 'active' : ''}`,
     html: `<span><b>${index + 1}</b></span>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 30],
-    popupAnchor: [0, -28],
+    iconSize: active ? [42, 42] : [30, 30],
+    iconAnchor: active ? [21, 42] : [15, 30],
+    popupAnchor: [0, active ? -38 : -28],
   });
 }
 
@@ -53,8 +53,23 @@ function buildGoogleMapsUrl(card) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
+function SelectedMapFocus({ selectedEntry }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedEntry?.location) return;
+    map.flyTo([selectedEntry.location.lat, selectedEntry.location.lng], Math.max(map.getZoom(), 16), {
+      animate: true,
+      duration: 0.55,
+    });
+  }, [map, selectedEntry]);
+
+  return null;
+}
+
 export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
   const [copiedCardId, setCopiedCardId] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState('');
 
   const scheduledCards = useMemo(() => {
     return ZONE_ORDER.flatMap((zone) =>
@@ -76,6 +91,7 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
     [scheduledCards]
   );
 
+  const selectedEntry = cardsWithLocation.find(({ card }) => card.id === selectedCardId) || null;
   const positions = cardsWithLocation.map(({ location }) => [location.lat, location.lng]);
   const center = positions[0] || [35.6762, 139.6503];
   const bounds = positions.length > 1 ? positions : null;
@@ -84,6 +100,10 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
 
   function handleBackdropClick(e) {
     if (e.target === e.currentTarget) onClose();
+  }
+
+  function handleSelectCard(card) {
+    setSelectedCardId(card.id);
   }
 
   async function handleCopyTitle(card) {
@@ -108,13 +128,17 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
           target="_blank"
           rel="noreferrer"
           title="用 Google Maps 搜尋這個景點"
+          onClick={(e) => e.stopPropagation()}
         >
           Google Maps
         </a>
         <button
           className="map-card-action"
           type="button"
-          onClick={() => handleCopyTitle(card)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCopyTitle(card);
+          }}
           title="複製景點標題"
         >
           {copiedCardId === card.id ? '已複製' : '複製標題'}
@@ -147,25 +171,31 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
               scrollWheelZoom
             >
               <TileLayer attribution={tileAttribution} url={tileUrl} />
+              <SelectedMapFocus selectedEntry={selectedEntry} />
               {positions.length > 1 && <Polyline positions={positions} pathOptions={{ color: '#ff7043', weight: 3, opacity: 0.72 }} />}
-              {cardsWithLocation.map(({ card, zone, order, location }) => (
-                <Marker
-                  key={card.id}
-                  position={[location.lat, location.lng]}
-                  icon={createNumberIcon(order)}
-                >
-                  <Popup>
-                    <div className="map-popup">
-                      <strong>{order + 1}. {card.title}</strong>
-                      {card.subtitle && <span>{card.subtitle}</span>}
-                      <small>{ZONE_LABELS[zone]} · {card.area || '未填區域'}</small>
-                      {card.location?.placeName && <small>📍 {card.location.placeName}</small>}
-                      {card.location?.address && <small>{card.location.address}</small>}
-                      {renderMapActions(card)}
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+              {cardsWithLocation.map(({ card, zone, order, location }) => {
+                const isActive = selectedCardId === card.id;
+                return (
+                  <Marker
+                    key={card.id}
+                    position={[location.lat, location.lng]}
+                    icon={createNumberIcon(order, isActive)}
+                    zIndexOffset={isActive ? 1000 : 0}
+                    eventHandlers={{ click: () => handleSelectCard(card) }}
+                  >
+                    <Popup>
+                      <div className="map-popup">
+                        <strong>{order + 1}. {card.title}</strong>
+                        {card.subtitle && <span>{card.subtitle}</span>}
+                        <small>{ZONE_LABELS[zone]} · {card.area || '未填區域'}</small>
+                        {card.location?.placeName && <small>📍 {card.location.placeName}</small>}
+                        {card.location?.address && <small>{card.location.address}</small>}
+                        {renderMapActions(card)}
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
             </MapContainer>
           ) : (
             <div className="map-empty-state">
@@ -182,15 +212,22 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
             ) : (
               scheduledCards.map(({ card, zone }, index) => {
                 const location = getCardLocation(card);
+                const isActive = selectedCardId === card.id;
                 return (
-                  <div key={`${card.id}-${index}`} className={`map-list-item ${location ? 'has-location' : 'missing-location'}`}>
+                  <button
+                    key={`${card.id}-${index}`}
+                    className={`map-list-item ${location ? 'has-location' : 'missing-location'} ${isActive ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => handleSelectCard(card)}
+                    disabled={!location}
+                  >
                     <span className="map-list-number">{index + 1}</span>
                     <div className="map-list-content">
                       <strong>{card.title}</strong>
                       <small>{ZONE_LABELS[zone]} · {card.area || '未填區域'} {location ? '· 已定位' : '· 尚未定位'}</small>
                       {renderMapActions(card, true)}
                     </div>
-                  </div>
+                  </button>
                 );
               })
             )}

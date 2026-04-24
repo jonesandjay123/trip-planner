@@ -1564,3 +1564,206 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+
+/* ===== Mobile itinerary paging / candidate panel ===== */
+.mobile-day-pager,
+.mobile-day-dots,
+.mobile-bottom-bar,
+.btn-close-pool,
+.pool-current-day,
+.mobile-quick-add-row {
+  display: none;
+}
+
+.pool-card-item {
+  flex-shrink: 0;
+}
+
+@media (min-width: 481px) {
+  .pool-card-item {
+    min-width: 200px;
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app {
+    padding-bottom: 64px;
+  }
+
+  .mobile-day-pager {
+    display: grid;
+    grid-template-columns: minmax(74px, auto) 1fr minmax(74px, auto);
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 80;
+    padding: 10px;
+    background: var(--bg-body);
+    border-bottom: 1px solid var(--column-border);
+  }
+
+  .mobile-day-nav-btn {
+    border: 1px solid var(--btn-border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    padding: 8px 6px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .mobile-day-nav-btn:disabled {
+    opacity: 0.35;
+  }
+
+  .mobile-day-current {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .mobile-day-current-date {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+
+  .mobile-day-current-label {
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-day-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 10px 2px;
+    background: var(--bg-body);
+  }
+
+  .mobile-day-dot {
+    width: 8px;
+    height: 8px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--text-ghost);
+    opacity: 0.6;
+    padding: 0;
+  }
+
+  .mobile-day-dot.active {
+    width: 22px;
+    background: var(--accent);
+    opacity: 1;
+  }
+
+  .days-container .day-column {
+    display: none;
+  }
+
+  .days-container .day-column.mobile-day-active {
+    display: block;
+  }
+
+  .day-header .swap-btn {
+    display: none;
+  }
+
+  .mobile-bottom-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 220;
+    padding: 8px;
+    border: 1px solid var(--pool-border);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--pool-bg) 92%, transparent);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(12px);
+  }
+
+  .mobile-bottom-bar button {
+    border: 0;
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    padding: 9px 4px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .candidate-pool {
+    position: fixed;
+    inset: 8vh 0 0;
+    z-index: 210;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 12px 84px;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.28);
+    transform: translateY(110%);
+    transition: transform 0.22s ease;
+  }
+
+  .candidate-pool.candidate-pool-open {
+    transform: translateY(0);
+  }
+
+  .pool-current-day,
+  .btn-close-pool,
+  .mobile-quick-add-row {
+    display: inline-flex;
+  }
+
+  .pool-current-day {
+    width: 100%;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .btn-close-pool {
+    margin-left: auto;
+  }
+
+  .pool-cards {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 2px 20px;
+  }
+
+  .pool-card-item {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .mobile-quick-add-row {
+    width: 100%;
+    gap: 6px;
+    margin: 6px 0 12px;
+  }
+
+  .mobile-quick-add-row button {
+    flex: 1;
+    border: 1px solid var(--btn-border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    padding: 8px 2px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+}

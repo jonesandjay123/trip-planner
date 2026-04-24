@@ -12,7 +12,7 @@ function formatDayHeader(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, onEditCard, onDeleteCard, onAddComment, onEditComment, onDeleteComment, onLabelChange }) {
+export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, isMobileSelected, onEditCard, onDeleteCard, onAddComment, onEditComment, onDeleteComment, onLabelChange }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label || '');
 
@@ -36,7 +36,7 @@ export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst
   }
 
   return (
-    <div className="day-column">
+    <div className={`day-column ${isMobileSelected ? 'mobile-day-active' : ''}`}>
       <div className="day-header">
         <button
           className="swap-btn"

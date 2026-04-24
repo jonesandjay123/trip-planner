@@ -25,6 +25,7 @@ import { ownerEmail } from './firebase';
 import { logOut, signInWithGoogle, subscribeToAuthState } from './lib/auth';
 
 const STATE_VERSION = 7; // v7: day labels + cardOrder for pool sorting
+const MOBILE_DAY_KEY = 'trip-planner-mobile-day';
 
 function generateDays(startDate, endDate) {
   const days = {};
@@ -111,6 +112,8 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isNewCard, setIsNewCard] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [candidatePanelOpen, setCandidatePanelOpen] = useState(false);
+  const [mobileDay, setMobileDay] = useState(() => localStorage.getItem(MOBILE_DAY_KEY) || '');
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState(null);
 
@@ -130,6 +133,21 @@ export default function App() {
   const activePlan = useMemo(() => getActivePlan(state), [state]);
   const activeDays = useMemo(() => getPlanDays(activePlan), [activePlan]);
   const activeDayOrder = useMemo(() => getPlanDayOrder(activePlan), [activePlan]);
+  const currentMobileDay = activeDayOrder.includes(mobileDay) ? mobileDay : activeDayOrder[0];
+  const currentMobileDayIndex = Math.max(0, activeDayOrder.indexOf(currentMobileDay));
+
+  useEffect(() => {
+    if (!activeDayOrder.length) return;
+    if (!activeDayOrder.includes(mobileDay)) {
+      setMobileDay(activeDayOrder[0]);
+    }
+  }, [activeDayOrder, mobileDay]);
+
+  useEffect(() => {
+    if (currentMobileDay) {
+      localStorage.setItem(MOBILE_DAY_KEY, currentMobileDay);
+    }
+  }, [currentMobileDay]);
 
   // Unscheduled = all cards − cards assigned in active plan, sorted by cardOrder
   const unscheduledCardIds = useMemo(() => {
@@ -154,6 +172,32 @@ export default function App() {
       ...prev,
       tripMeta: { ...prev.tripMeta, activePlanId: planId },
     }));
+  }
+
+  function handleMobileDayStep(direction) {
+    if (!activeDayOrder.length) return;
+    const nextIndex = Math.min(activeDayOrder.length - 1, Math.max(0, currentMobileDayIndex + direction));
+    setMobileDay(activeDayOrder[nextIndex]);
+  }
+
+  function handleAddCandidateToMobileDay(cardId, zone) {
+    if (!requireEditable()) return;
+    if (!currentMobileDay) return;
+    updateActivePlan((plan) => {
+      const currentDay = plan.days[currentMobileDay] || { morning: [], afternoon: [], evening: [], flexible: [] };
+      if ((currentDay[zone] || []).includes(cardId)) return plan;
+      return {
+        ...plan,
+        days: {
+          ...plan.days,
+          [currentMobileDay]: {
+            ...currentDay,
+            [zone]: [...(currentDay[zone] || []), cardId],
+          },
+        },
+      };
+    });
+    setCandidatePanelOpen(false);
   }
 
   function requireEditable() {
@@ -635,6 +679,38 @@ export default function App() {
           }
         />
 
+        <div className="mobile-day-pager">
+          <button
+            className="mobile-day-nav-btn"
+            onClick={() => handleMobileDayStep(-1)}
+            disabled={currentMobileDayIndex <= 0}
+          >
+            ← 前一天
+          </button>
+          <div className="mobile-day-current">
+            <div className="mobile-day-current-date">{formatMobileDate(currentMobileDay)}</div>
+            <div className="mobile-day-current-label">{(activePlan?.dayLabels || {})[currentMobileDay] || '今日行程'}</div>
+          </div>
+          <button
+            className="mobile-day-nav-btn"
+            onClick={() => handleMobileDayStep(1)}
+            disabled={currentMobileDayIndex >= activeDayOrder.length - 1}
+          >
+            後一天 →
+          </button>
+        </div>
+
+        <div className="mobile-day-dots">
+          {activeDayOrder.map((date, idx) => (
+            <button
+              key={date}
+              className={`mobile-day-dot ${date === currentMobileDay ? 'active' : ''}`}
+              onClick={() => setMobileDay(date)}
+              aria-label={`切換到第 ${idx + 1} 天`}
+            />
+          ))}
+        </div>
+
         <div className="days-container">
           {activeDayOrder.map((date, idx) => (
             <DayColumn
@@ -651,6 +727,7 @@ export default function App() {
               onAddComment={handleAddComment}
               onEditComment={handleEditComment}
               onDeleteComment={handleDeleteComment}
+              isMobileSelected={date === currentMobileDay}
               onLabelChange={handleDayLabelChange}
             />
           ))}
@@ -659,6 +736,10 @@ export default function App() {
         <CandidatePool
           cardIds={unscheduledCardIds}
           cardMap={cardMap}
+          panelOpen={candidatePanelOpen}
+          currentDayLabel={formatMobileDate(currentMobileDay)}
+          onClosePanel={() => setCandidatePanelOpen(false)}
+          onAddToZone={handleAddCandidateToMobileDay}
           onAddNew={openNewCardModal}
           onAiGenerate={() => setAiModalOpen(true)}
           onEdit={openEditModal}
@@ -667,6 +748,13 @@ export default function App() {
           onEditComment={handleEditComment}
           onDeleteComment={handleDeleteComment}
         />
+
+        <div className="mobile-bottom-bar">
+          <button onClick={() => setCandidatePanelOpen(false)}>📅 行程</button>
+          <button onClick={() => setCandidatePanelOpen(true)}>🎒 候選 {unscheduledCardIds.length}</button>
+          <button onClick={openNewCardModal}>＋新增</button>
+          <button onClick={() => setAiModalOpen(true)}>🤖 AI</button>
+        </div>
       </div>
 
       <DragOverlay dropAnimation={null}>
@@ -727,4 +815,11 @@ function setItemsInPlan(state, plan, containerId, items) {
     ...state,
     plans: { ...state.plans, [plan.id]: updatedPlan },
   };
+}
+
+function formatMobileDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+  return `${d.getMonth() + 1}/${d.getDate()} (${dayNames[d.getDay()]})`;
 }

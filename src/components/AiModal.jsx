@@ -48,7 +48,7 @@ export default function AiModal({ onClose, onCardsGenerated }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="ai-modal" onClick={(e) => e.stopPropagation()}>
+      <div className={`ai-modal ${loading ? 'ai-modal-loading' : ''}`} onClick={(e) => e.stopPropagation()}>
         <h2>🤖 AI 推薦行程</h2>
         <p className="ai-modal-desc">
           告訴 AI 你想要什麼樣的行程，它會幫你生成候選卡片

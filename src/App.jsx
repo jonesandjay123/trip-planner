@@ -21,7 +21,7 @@ import PlanSelector from './components/PlanSelector';
 import NicknameModal from './components/NicknameModal';
 import AiModal from './components/AiModal';
 import { useNickname } from './hooks/useNickname';
-import { auth, ownerEmail } from './firebase';
+import { ownerEmail } from './firebase';
 import { logOut, signInWithGoogle, subscribeToAuthState } from './lib/auth';
 
 const STATE_VERSION = 7; // v7: day labels + cardOrder for pool sorting
@@ -126,9 +126,8 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const signedInUser = user || auth.currentUser;
-  const isOwner = Boolean(signedInUser?.email && signedInUser.email.toLowerCase() === ownerEmail.toLowerCase());
-  const canEdit = Boolean(signedInUser);
+  const isOwner = Boolean(user?.email && user.email.toLowerCase() === ownerEmail.toLowerCase());
+  const canEdit = Boolean(user);
 
   async function handleLogin() {
     const result = await signInWithGoogle();
@@ -676,7 +675,7 @@ export default function App() {
           darkMode={darkMode}
           onToggleDark={() => setDarkMode((v) => !v)}
           authLoading={authLoading}
-          user={signedInUser}
+          user={user}
           isOwner={isOwner}
           onLogin={() => handleLogin().catch((error) => console.error('❌ Google sign-in failed:', error))}
           onLogout={() => logOut().catch((error) => console.error('❌ Logout failed:', error))}

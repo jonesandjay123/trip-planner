@@ -217,7 +217,6 @@ function SortableCardShell({ card, children }) {
     attributes,
     listeners,
     setNodeRef,
-    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -231,7 +230,7 @@ function SortableCardShell({ card, children }) {
 
   return children({
     shellProps: { ref: setNodeRef, style, className: 'sortable-card-shell', ...attributes, ...listeners },
-    dragHandleProps: { ref: setActivatorNodeRef, ...attributes, ...listeners },
+    dragHandleProps: {},
   });
 }
 

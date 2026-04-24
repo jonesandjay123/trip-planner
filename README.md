@@ -63,7 +63,7 @@
 2. **Last viewed day**：使用 `localStorage` key `trip-planner-mobile-day` 記住上次停在哪一天，不硬算真實日期。
 3. **Compact Header**：上方橘色區塊壓縮成核心資訊 + `⋯` menu，低頻操作收合。
 4. **Candidate Panel**：底部 `🎒 候選` 打開 slide-up panel；候選卡可用 `早/午/晚/彈` 快速加入目前日期。
-5. **Drag handle**：手機上卡片只從 `☰` handle 開始拖曳，避免整張卡攔截正常 scroll。
+5. **DnD regression rule**：桌面版允許從卡片本體拖曳；卡片內編輯 / 刪除 / 展開 / 留言控制會阻止 pointer 事件冒泡，避免誤拖。手機版仍保留 `☰` handle 與快速加入按鈕，任何 mobile DnD 調整都必須同步回歸測桌面拖曳。
 
 ### Destructive action policy
 

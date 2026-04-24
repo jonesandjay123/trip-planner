@@ -165,7 +165,8 @@ body {
   top: 0;
   z-index: 100;
   gap: 16px;
-  overflow-x: auto;
+  overflow-x: visible;
+  overflow-y: visible;
   white-space: nowrap;
 }
 
@@ -330,6 +331,7 @@ body {
 
 .plan-selector-dropdown {
   position: relative;
+  z-index: 300;
 }
 
 .plan-selector-trigger {
@@ -369,11 +371,11 @@ body {
   top: calc(100% + 4px);
   left: 0;
   min-width: 220px;
-  background: var(--bg-primary);
-  border: 2px solid var(--border);
+  background: var(--modal-bg, white);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  z-index: 200;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  z-index: 5000;
   overflow: hidden;
 }
 

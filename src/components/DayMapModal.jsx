@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -34,6 +34,15 @@ function formatDay(dateStr) {
   const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getMonth() + 1}/${d.getDate()} (${dayNames[d.getDay()]})`;
+}
+
+function stripEmoji(text) {
+  return String(text || '')
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/\p{Emoji_Presentation}/gu, '')
+    .replace(/[\uFE0E\uFE0F\u200D]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function buildGoogleMapsUrl(card) {
@@ -107,7 +116,7 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
   }
 
   async function handleCopyTitle(card) {
-    const text = card?.title || '';
+    const text = stripEmoji(card?.title || '');
     if (!text) return;
 
     try {
@@ -172,7 +181,6 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
             >
               <TileLayer attribution={tileAttribution} url={tileUrl} />
               <SelectedMapFocus selectedEntry={selectedEntry} />
-              {positions.length > 1 && <Polyline positions={positions} pathOptions={{ color: '#ff7043', weight: 3, opacity: 0.72 }} />}
               {cardsWithLocation.map(({ card, zone, order, location }) => {
                 const isActive = selectedCardId === card.id;
                 return (

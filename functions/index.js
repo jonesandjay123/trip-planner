@@ -283,7 +283,14 @@ Return STRICT JSON in this format, no markdown, no explanation, only JSON:
       "duration": "預估時間 (如 2-3hr)",
       "area": "所在區域",
       "note": "實用建議",
-      "tags": ["標籤1", "標籤2"]
+      "tags": ["標籤1", "標籤2"],
+      "location": {
+        "placeName": "Google Maps / OSM 上可查到的正式地點名稱",
+        "address": "完整或接近完整地址",
+        "lat": 35.714765,
+        "lng": 139.796655,
+        "confidence": "high/medium/low"
+      }
     }
   ]
 }
@@ -292,6 +299,10 @@ Rules:
 - zone must be one of: morning, afternoon, evening, flexible
 - Generate 5 cards unless the user specifies a different number
 - Content should be specific and practical for trip planning
+- Include location for each card whenever the card represents a physical place, station, shop, restaurant, district, or representative area
+- location.lat and location.lng must be numeric decimal coordinates, not strings
+- Use confidence high only for a specific well-known POI/shop/station; use medium for a district/representative point; use low if uncertain
+- If a request is conceptual and no reasonable physical representative point exists, omit location
 - Use Traditional Chinese for all text`,
                       },
                     ],
@@ -344,18 +355,38 @@ Rules:
           throw new HttpsError("internal", "Invalid cards format");
         }
 
-        const cards = parsed.cards.map((card) => ({
-          id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          title: card.title || "未命名景點",
-          subtitle: card.subtitle || "",
-          zone: VALID_ZONES.includes(card.zone) ? card.zone : "flexible",
-          duration: card.duration || "1-2hr",
-          area: card.area || "",
-          note: card.note || "",
-          tags: Array.isArray(card.tags) ? card.tags.slice(0, 5) : [],
-          comments: [],
-          source: "gemini",
-        }));
+        const cards = parsed.cards.map((card) => {
+          const nextCard = {
+            id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            title: card.title || "未命名景點",
+            subtitle: card.subtitle || "",
+            zone: VALID_ZONES.includes(card.zone) ? card.zone : "flexible",
+            duration: card.duration || "1-2hr",
+            area: card.area || "",
+            note: card.note || "",
+            tags: Array.isArray(card.tags) ? card.tags.slice(0, 5) : [],
+            comments: [],
+            source: "gemini",
+          };
+
+          if (card.location && typeof card.location === "object") {
+            const lat = Number(card.location.lat);
+            const lng = Number(card.location.lng);
+            if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+              nextCard.location = {
+                placeName: String(card.location.placeName || card.title || "").trim(),
+                address: String(card.location.address || "").trim(),
+                lat,
+                lng,
+                source: "ai",
+                confidence: String(card.location.confidence || "medium").trim() || "medium",
+                updatedAt: nowIso(),
+              };
+            }
+          }
+
+          return nextCard;
+        });
 
         return {cards};
       } catch (err) {

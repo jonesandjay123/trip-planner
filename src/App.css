@@ -329,83 +329,24 @@ body {
   white-space: nowrap;
 }
 
-.plan-selector-dropdown {
-  position: relative;
-  z-index: 300;
-}
-
-.plan-selector-trigger {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
+.plan-selector-native {
+  padding: 6px 12px;
   background: rgba(255, 255, 255, 0.2);
   border: 1.5px solid rgba(255, 255, 255, 0.4);
   border-radius: 8px;
-  cursor: pointer;
   font-size: 13px;
   font-weight: 600;
   color: white;
-  min-width: 100px;
-  transition: all 0.2s;
+  min-width: 140px;
+  cursor: pointer;
+  outline: none;
   backdrop-filter: blur(4px);
 }
 
-.plan-selector-trigger:hover {
-  background: rgba(255, 255, 255, 0.35);
-  border-color: rgba(255, 255, 255, 0.7);
+.plan-selector-native option {
+  color: #222;
+  background: white;
 }
-
-.plan-selector-name {
-  flex: 1;
-  text-align: left;
-}
-
-.plan-selector-arrow {
-  font-size: 10px;
-  opacity: 0.6;
-}
-
-.plan-selector-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  min-width: 220px;
-  background: var(--modal-bg, white);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
-  z-index: 5000;
-  overflow: hidden;
-}
-
-.plan-selector-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-  gap: 8px;
-}
-
-.plan-selector-item:hover {
-  background: var(--bg-secondary);
-}
-
-.plan-selector-item.active {
-  background: var(--accent);
-  color: white;
-}
-
-.plan-selector-item.active:hover {
-  background: var(--accent-hover);
-}
-
-.plan-item-name {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

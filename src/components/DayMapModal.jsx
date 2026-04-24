@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -36,7 +36,26 @@ function formatDay(dateStr) {
   return `${d.getMonth() + 1}/${d.getDate()} (${dayNames[d.getDay()]})`;
 }
 
+function buildGoogleMapsUrl(card) {
+  const location = getCardLocation(card);
+  const queryParts = [card?.location?.placeName, card?.title, card?.location?.address, card?.area]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  // Prefer keyword/address search because it is more likely to open the real Google Maps place page.
+  // Fall back to coordinates for low-information cards.
+  const query = queryParts.length > 0
+    ? queryParts.join(' ')
+    : location
+      ? `${location.lat},${location.lng}`
+      : card?.title || '';
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
+  const [copiedCardId, setCopiedCardId] = useState('');
+
   const scheduledCards = useMemo(() => {
     return ZONE_ORDER.flatMap((zone) =>
       (zones?.[zone] || [])
@@ -65,6 +84,43 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
 
   function handleBackdropClick(e) {
     if (e.target === e.currentTarget) onClose();
+  }
+
+  async function handleCopyTitle(card) {
+    const text = card?.title || '';
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedCardId(card.id);
+      window.setTimeout(() => setCopiedCardId((current) => (current === card.id ? '' : current)), 1400);
+    } catch {
+      window.prompt('複製景點名稱', text);
+    }
+  }
+
+  function renderMapActions(card, compact = false) {
+    return (
+      <div className={`map-card-actions ${compact ? 'compact' : ''}`}>
+        <a
+          className="map-card-action"
+          href={buildGoogleMapsUrl(card)}
+          target="_blank"
+          rel="noreferrer"
+          title="用 Google Maps 搜尋這個景點"
+        >
+          Google Maps
+        </a>
+        <button
+          className="map-card-action"
+          type="button"
+          onClick={() => handleCopyTitle(card)}
+          title="複製景點標題"
+        >
+          {copiedCardId === card.id ? '已複製' : '複製標題'}
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -105,6 +161,7 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
                       <small>{ZONE_LABELS[zone]} · {card.area || '未填區域'}</small>
                       {card.location?.placeName && <small>📍 {card.location.placeName}</small>}
                       {card.location?.address && <small>{card.location.address}</small>}
+                      {renderMapActions(card)}
                     </div>
                   </Popup>
                 </Marker>
@@ -128,9 +185,10 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose }) {
                 return (
                   <div key={`${card.id}-${index}`} className={`map-list-item ${location ? 'has-location' : 'missing-location'}`}>
                     <span className="map-list-number">{index + 1}</span>
-                    <div>
+                    <div className="map-list-content">
                       <strong>{card.title}</strong>
                       <small>{ZONE_LABELS[zone]} · {card.area || '未填區域'} {location ? '· 已定位' : '· 尚未定位'}</small>
+                      {renderMapActions(card, true)}
                     </div>
                   </div>
                 );

@@ -2215,3 +2215,62 @@ body {
     max-height: none;
   }
 }
+
+/* Map modal external actions */
+.map-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.map-card-actions.compact {
+  margin-top: 7px;
+}
+
+.map-card-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--btn-border);
+  border-radius: 999px;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 7px 9px;
+  text-decoration: none;
+  transition: all 0.16s ease;
+}
+
+.map-card-action:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.map-popup .map-card-action {
+  color: #444;
+}
+
+.map-popup .map-card-action:hover {
+  color: white;
+}
+
+.map-list-content {
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .map-card-actions.compact {
+    gap: 5px;
+  }
+
+  .map-card-action {
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+}

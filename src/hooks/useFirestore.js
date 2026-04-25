@@ -29,6 +29,8 @@ export function useFirestore(initialValue) {
   const dragging = useRef(false);
   const pendingWrite = useRef(false);
   const latestState = useRef(state);
+  const dirty = useRef(false);
+  const dirtyVersion = useRef(0);
   const WRITE_COOLDOWN = 1500;
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export function useFirestore(initialValue) {
             if (timeSinceWrite < WRITE_COOLDOWN) {
               return;
             }
+            dirty.current = false;
             setState(remote);
             localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(remote));
             console.log('📡 Real-time update from Firestore');
@@ -71,14 +74,20 @@ export function useFirestore(initialValue) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const writeLatestState = useCallback((reason = 'manual flush') => {
-    if (!initialized.current) return;
+    if (!initialized.current || !dirty.current) return;
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
       debounceTimer.current = null;
     }
     lastWriteTime.current = Date.now();
+    const writeVersion = dirtyVersion.current;
     setDoc(doc(db, FIRESTORE_DOC), latestState.current)
-      .then(() => console.log(`☁️ Synced to Firestore (${reason})`))
+      .then(() => {
+        if (dirtyVersion.current === writeVersion) {
+          dirty.current = false;
+        }
+        console.log(`☁️ Synced to Firestore (${reason})`);
+      })
       .catch((err) => console.error('❌ Failed to sync:', err));
   }, []);
 
@@ -134,8 +143,16 @@ export function useFirestore(initialValue) {
     };
   }, [state, writeLatestState]);
 
+  const updateState = useCallback((value) => {
+    dirty.current = true;
+    dirtyVersion.current += 1;
+    setState(value);
+  }, []);
+
   const resetState = useCallback((newState) => {
     localStorage.removeItem(LOCAL_CACHE_KEY);
+    dirty.current = true;
+    dirtyVersion.current += 1;
     setState(newState);
   }, []);
 
@@ -158,5 +175,5 @@ export function useFirestore(initialValue) {
     }
   }, [writeLatestState]);
 
-  return [state, setState, resetState, loading, setDragging];
+  return [state, updateState, resetState, loading, setDragging];
 }

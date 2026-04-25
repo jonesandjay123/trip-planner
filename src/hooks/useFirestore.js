@@ -6,6 +6,12 @@ const FIRESTORE_DOC = 'trips/main';
 const LOCAL_CACHE_KEY = 'trip-planner-state';
 const DEBOUNCE_MS = 200;
 
+function getCardUpdatedTime(card) {
+  const raw = card?.updatedAt || card?.location?.updatedAt || card?.createdAt;
+  const parsed = raw ? Date.parse(raw) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function mergeRemoteProtectedFields(localState, remoteState) {
   if (!remoteState?.cards || !localState?.cards) return localState;
 
@@ -14,13 +20,22 @@ function mergeRemoteProtectedFields(localState, remoteState) {
 
   for (const [cardId, localCard] of Object.entries(localState.cards)) {
     const remoteCard = remoteState.cards?.[cardId];
-    if (!remoteCard?.location || localCard?.location) continue;
+    if (!remoteCard) continue;
 
-    mergedCards[cardId] = {
-      ...localCard,
-      location: remoteCard.location,
-    };
-    changed = true;
+    const remoteIsNewer = getCardUpdatedTime(remoteCard) > getCardUpdatedTime(localCard);
+    if (remoteIsNewer) {
+      mergedCards[cardId] = remoteCard;
+      changed = true;
+      continue;
+    }
+
+    if (remoteCard.location && !localCard?.location) {
+      mergedCards[cardId] = {
+        ...localCard,
+        location: remoteCard.location,
+      };
+      changed = true;
+    }
   }
 
   return changed ? { ...localState, cards: mergedCards } : localState;

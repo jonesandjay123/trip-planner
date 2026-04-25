@@ -478,13 +478,18 @@ export default function App() {
   function handleModalSave(updatedCard, isNew) {
     if (!requireEditable()) return;
     setState((prev) => {
+      const now = new Date().toISOString();
+      const cardToSave = {
+        ...updatedCard,
+        updatedAt: now,
+      };
       const newState = {
         ...prev,
-        cards: { ...prev.cards, [updatedCard.id]: updatedCard },
+        cards: { ...prev.cards, [cardToSave.id]: cardToSave },
       };
       // New cards go to the front of cardOrder (most visible position)
       if (isNew) {
-        newState.cardOrder = [updatedCard.id, ...(prev.cardOrder || [])];
+        newState.cardOrder = [cardToSave.id, ...(prev.cardOrder || [])];
       }
       return newState;
     });
@@ -506,6 +511,7 @@ export default function App() {
         [cardId]: {
           ...prev.cards[cardId],
           comments: [...(prev.cards[cardId]?.comments || []), comment],
+          updatedAt: new Date().toISOString(),
         },
       },
     }));
@@ -520,7 +526,7 @@ export default function App() {
       newComments[commentIdx] = { ...newComments[commentIdx], text: newText };
       return {
         ...prev,
-        cards: { ...prev.cards, [cardId]: { ...card, comments: newComments } },
+        cards: { ...prev.cards, [cardId]: { ...card, comments: newComments, updatedAt: new Date().toISOString() } },
       };
     });
   }
@@ -532,7 +538,10 @@ export default function App() {
       const newOrder = [...(prev.cardOrder || [])];
       // Prepend AI cards (newest first)
       for (const card of aiCards.reverse()) {
-        newCards[card.id] = card;
+        newCards[card.id] = {
+          ...card,
+          updatedAt: card.updatedAt || new Date().toISOString(),
+        };
         newOrder.unshift(card.id);
       }
       return { ...prev, cards: newCards, cardOrder: newOrder };
@@ -570,7 +579,7 @@ export default function App() {
       const newComments = (card.comments || []).filter((_, i) => i !== commentIdx);
       return {
         ...prev,
-        cards: { ...prev.cards, [cardId]: { ...card, comments: newComments } },
+        cards: { ...prev.cards, [cardId]: { ...card, comments: newComments, updatedAt: new Date().toISOString() } },
       };
     });
   }

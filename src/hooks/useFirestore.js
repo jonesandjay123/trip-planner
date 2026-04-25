@@ -1,10 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const FIRESTORE_DOC = 'trips/main';
 const LOCAL_CACHE_KEY = 'trip-planner-state';
 const DEBOUNCE_MS = 200;
+
+function mergeRemoteProtectedFields(localState, remoteState) {
+  if (!remoteState?.cards || !localState?.cards) return localState;
+
+  let changed = false;
+  const mergedCards = { ...localState.cards };
+
+  for (const [cardId, localCard] of Object.entries(localState.cards)) {
+    const remoteCard = remoteState.cards?.[cardId];
+    if (!remoteCard?.location || localCard?.location) continue;
+
+    mergedCards[cardId] = {
+      ...localCard,
+      location: remoteCard.location,
+    };
+    changed = true;
+  }
+
+  return changed ? { ...localState, cards: mergedCards } : localState;
+}
 
 export function useFirestore(initialValue) {
   const [state, setState] = useState(() => {
@@ -81,7 +101,16 @@ export function useFirestore(initialValue) {
     }
     lastWriteTime.current = Date.now();
     const writeVersion = dirtyVersion.current;
-    setDoc(doc(db, FIRESTORE_DOC), latestState.current)
+    const ref = doc(db, FIRESTORE_DOC);
+
+    getDoc(ref)
+      .then((snap) => {
+        const stateToWrite = snap.exists()
+          ? mergeRemoteProtectedFields(latestState.current, snap.data())
+          : latestState.current;
+        latestState.current = stateToWrite;
+        return setDoc(ref, stateToWrite);
+      })
       .then(() => {
         if (dirtyVersion.current === writeVersion) {
           dirty.current = false;

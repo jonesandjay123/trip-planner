@@ -1,6 +1,6 @@
 const crypto = require("node:crypto");
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -15,6 +15,7 @@ const FieldValue = admin.firestore.FieldValue;
 const TRIP_DOC_PATH = "trips/main";
 const VALID_ZONES = ["morning", "afternoon", "evening", "flexible"];
 const JARVIS_SHARED_SECRET = defineSecret("JARVIS_SHARED_SECRET");
+const GPT_ACTIONS_API_KEY = defineSecret("GPT_ACTIONS_API_KEY");
 
 function nowIso() {
   return new Date().toISOString();
@@ -237,6 +238,195 @@ async function appendActivityLog(entry) {
     }),
   }, {merge: true});
 }
+
+function sendGptActionJson(response, status, body) {
+  response.status(status).json({
+    auditId: `gpt_action_${Date.now()}`,
+    ...body,
+  });
+}
+
+function assertGptActionBearer(request) {
+  const expected = GPT_ACTIONS_API_KEY.value();
+  const authHeader = request.get("authorization") || "";
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  const provided = match ? match[1].trim() : "";
+
+  if (!expected) {
+    logger.error("GPT_ACTIONS_API_KEY secret is missing");
+    return false;
+  }
+
+  return provided && timingSafeEqualString(provided, expected);
+}
+
+function summarizePlanForGpt(trip, planId, activePlanId) {
+  const plan = trip.plans?.[planId] || {};
+  return {
+    id: planId,
+    name: plan.name || planId,
+    isActive: planId === activePlanId,
+    dayOrder: Array.isArray(plan.dayOrder) ? plan.dayOrder : [],
+    dayLabels: plan.dayLabels || {},
+    scheduledCardCount: Object.values(plan.days || {}).reduce((sum, zones) => {
+      return sum + Object.values(zones || {}).reduce((inner, ids) => inner + (Array.isArray(ids) ? ids.length : 0), 0);
+    }, 0),
+  };
+}
+
+async function inspectTripForGptAction() {
+  const trip = await getTripStateOrThrow();
+  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : [];
+  const activePlanId = trip.tripMeta?.activePlanId || planOrder[0] || null;
+  const plans = planOrder.map((planId) => summarizePlanForGpt(trip, planId, activePlanId));
+
+  return {
+    ok: true,
+    action: "inspectTrip",
+    summary: `Trip has ${plans.length} plans and ${Object.keys(trip.cards || {}).length} cards. Active plan: ${activePlanId || "none"}.`,
+    data: {
+      tripMeta: trip.tripMeta || {},
+      activePlanId,
+      planCount: plans.length,
+      cardCount: Object.keys(trip.cards || {}).length,
+      plans,
+    },
+    warnings: [],
+  };
+}
+
+async function inspectDayForGptAction(payload) {
+  const planId = String(payload.planId || "default").trim() || "default";
+  const date = String(payload.date || "").trim();
+  const requestedZone = String(payload.zone || "").trim();
+
+  if (!date) {
+    return {
+      ok: false,
+      action: "inspectDay",
+      summary: "date is required for inspectDay.",
+      errorCode: "MISSING_DATE",
+      message: "date is required for inspectDay.",
+    };
+  }
+
+  const trip = await getTripStateOrThrow();
+  const plan = trip.plans?.[planId];
+  if (!plan) {
+    return {
+      ok: false,
+      action: "inspectDay",
+      summary: `Plan not found: ${planId}.`,
+      errorCode: "PLAN_NOT_FOUND",
+      message: `Plan not found: ${planId}.`,
+    };
+  }
+
+  const day = plan.days?.[date];
+  if (!day) {
+    return {
+      ok: false,
+      action: "inspectDay",
+      summary: `Day not found: ${date}.`,
+      errorCode: "DAY_NOT_FOUND",
+      message: `Day not found: ${date}.`,
+    };
+  }
+
+  const zonesToReturn = VALID_ZONES.includes(requestedZone) ? [requestedZone] : VALID_ZONES;
+  const zoneDetails = {};
+  for (const zone of zonesToReturn) {
+    const ids = Array.isArray(day[zone]) ? day[zone] : [];
+    zoneDetails[zone] = ids.map((id) => {
+      const card = trip.cards?.[id] || {id, title: id};
+      return {
+        id,
+        title: card.title || id,
+        subtitle: card.subtitle || "",
+        area: card.area || "",
+        duration: card.duration || "",
+      };
+    });
+  }
+
+  const cardCount = Object.values(zoneDetails).reduce((sum, cards) => sum + cards.length, 0);
+  const zoneText = VALID_ZONES.includes(requestedZone) ? `${requestedZone} ` : "";
+
+  return {
+    ok: true,
+    action: "inspectDay",
+    summary: `${date} ${zoneText}has ${cardCount} scheduled cards in plan ${planId}.`,
+    data: {
+      planId,
+      date,
+      label: plan.dayLabels?.[date] || "",
+      zones: zoneDetails,
+    },
+    warnings: [],
+  };
+}
+
+exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY]}, async (request, response) => {
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST") {
+    sendGptActionJson(response, 405, {
+      ok: false,
+      action: "unknown",
+      summary: "Only POST is supported.",
+      errorCode: "METHOD_NOT_ALLOWED",
+      message: "Only POST is supported.",
+    });
+    return;
+  }
+
+  if (!assertGptActionBearer(request)) {
+    sendGptActionJson(response, 401, {
+      ok: false,
+      action: "unknown",
+      summary: "Missing or invalid bearer token.",
+      errorCode: "UNAUTHORIZED",
+      message: "Missing or invalid bearer token.",
+    });
+    return;
+  }
+
+  const payload = request.body && typeof request.body === "object" ? request.body : {};
+  const action = String(payload.action || "").trim();
+
+  try {
+    if (action === "inspectTrip") {
+      sendGptActionJson(response, 200, await inspectTripForGptAction());
+      return;
+    }
+
+    if (action === "inspectDay") {
+      const result = await inspectDayForGptAction(payload);
+      sendGptActionJson(response, result.ok ? 200 : 400, result);
+      return;
+    }
+
+    sendGptActionJson(response, 400, {
+      ok: false,
+      action: action || "unknown",
+      summary: "This GPT Actions endpoint stub currently enables only inspectTrip and inspectDay.",
+      errorCode: "ACTION_NOT_ENABLED",
+      message: "Mutation and card-level actions are intentionally disabled in the first stub.",
+    });
+  } catch (error) {
+    logger.error("gptTripPlannerAction failed", {action, error});
+    sendGptActionJson(response, 500, {
+      ok: false,
+      action: action || "unknown",
+      summary: "Internal error while handling GPT Trip Planner action.",
+      errorCode: "INTERNAL",
+      message: error && error.message ? error.message : "Unknown error",
+    });
+  }
+});
 
 exports.generateTripCards = onCall(
     {

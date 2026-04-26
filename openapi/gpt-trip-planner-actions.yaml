@@ -6,8 +6,20 @@ info:
     Draft OpenAPI schema for Jones's Trip Planner Custom GPT Actions MVP.
     First version intentionally exposes only read-only and low-risk operations.
 servers:
-  - url: https://REGION-PROJECT.cloudfunctions.net
-    description: Replace with deployed Firebase Functions base URL before importing into Custom GPT.
+  # TODO after deploy: replace this placeholder with the real deployed origin.
+  # Keep it lowercase. GPT Builder validates that every server URL is under the
+  # same root origin; uppercase placeholders such as REGION-PROJECT can trigger
+  # a false mismatch against https://region-project.cloudfunctions.net.
+  #
+  # Option A, Firebase Functions base origin:
+  #   url: https://<region>-<project-id>.cloudfunctions.net
+  #   paths: keep /gptTripPlannerAction below
+  #
+  # Option B, complete Firebase Functions v2 / Cloud Run function URL:
+  #   url: https://<actual-function-host-or-url-containing-gptTripPlannerAction>
+  #   paths: change /gptTripPlannerAction to /
+  - url: https://region-project.cloudfunctions.net
+    description: TODO replace after deploy; placeholder only, not a real endpoint.
 paths:
   /gptTripPlannerAction:
     post:

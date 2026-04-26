@@ -3,7 +3,7 @@ info:
   title: Trip Planner GPT Actions API
   version: 0.1.0
   description: |
-    Private Trip Planner ops action for Jones. Enables read and normal planner mutations. Root/admin arbitrary writes remain unavailable.
+    Private Trip Planner ops action for Jones. Enables read, search, and normal planner mutations. Root/admin arbitrary writes remain unavailable.
 servers:
   - url: https://us-central1-trip-planner-ab5a9.cloudfunctions.net
     description: Firebase Functions base origin for Trip Planner GPT Actions.
@@ -13,7 +13,7 @@ paths:
       operationId: gptTripPlannerAction
       summary: Operate Jones private Tokyo May 2026 trip planner.
       description: |
-        Private planner ops gateway. Enables reads plus add card, comment, move, label rename, and backup. Root/admin writes disabled.
+        Private planner ops gateway. Enables reads/search plus card update, add, comment, move/remove slot, label rename, and backup. Root writes disabled.
       security:
         - bearerAuth: []
       requestBody:
@@ -35,6 +35,12 @@ paths:
                 value:
                   action: inspectCard
                   titleKeyword: 秋葉原
+              searchCards:
+                value:
+                  action: searchCards
+                  query: 秋葉原
+                  missingLocation: false
+                  limit: 10
               addCandidateCard:
                 value:
                   action: addCandidateCard
@@ -47,6 +53,13 @@ paths:
                     duration: 2-3 hr
                     note: 候選購物點
                     tags: [購物, 動漫, 模型]
+              updateCandidateCard:
+                value:
+                  action: updateCandidateCard
+                  titleKeyword: 中野百老匯
+                  patch:
+                    note: 補上營業時間與交通備註
+                    tags: [購物, 動漫, 必去]
               appendCommentToCard:
                 value:
                   action: appendCommentToCard
@@ -55,6 +68,12 @@ paths:
               moveCardToSlot:
                 value:
                   action: moveCardToSlot
+                  cardId: akihabara
+                  date: '5/2'
+                  zone: afternoon
+              removeCardFromSlot:
+                value:
+                  action: removeCardFromSlot
                   cardId: akihabara
                   date: '5/2'
                   zone: afternoon
@@ -140,9 +159,13 @@ components:
             - inspectTrip
             - inspectDay
             - inspectCard
+            - searchCards
+            - findCards
             - addCandidateCard
+            - updateCandidateCard
             - appendCommentToCard
             - moveCardToSlot
+            - removeCardFromSlot
             - renameDayLabel
             - createBackup
         planId:
@@ -164,6 +187,26 @@ components:
           description: Generic card search query.
         card:
           $ref: '#/components/schemas/CandidateCardInput'
+        patch:
+          $ref: '#/components/schemas/CandidateCardInput'
+        missingLocation:
+          type: boolean
+          description: For searchCards, return only cards missing usable lat/lng when true.
+        unscheduledOnly:
+          type: boolean
+          description: For searchCards, return only cards not scheduled in any plan when true.
+        area:
+          type: string
+          description: For searchCards, filter by card area.
+        tags:
+          type: array
+          items:
+            type: string
+          description: For searchCards, require matching tags.
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
         text:
           type: string
           description: Comment text for appendCommentToCard.

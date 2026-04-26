@@ -189,3 +189,20 @@ Verification passed after deploy:
 - no API key: HTTP 401 `UNAUTHORIZED`.
 
 Cleanup note: smoke-test cards were removed from schedule placements after testing. Existing `jarvisDeleteCandidateCard` removes placements/cardOrder but does not fully delete nested `cards.{id}` because it merges the parent `cards` map; the orphan smoke-test card records remain in the candidate pool and can be cleaned in a later maintenance fix if desired.
+
+## 2026-04-26 extra practical ops
+
+Added the three high-leverage travel ops actions after real GPT Builder testing:
+
+- `updateCandidateCard`: updates only whitelisted fields (`title`, `subtitle`, `area`, `duration`, `note`, `zone`, `tags`, `location`) and never changes card id or overwrites arbitrary metadata.
+- `searchCards` / `findCards`: searches by `query`, `missingLocation`, `unscheduledOnly`, `tags`, `area`, `date`, `zone`, and `limit`.
+- `removeCardFromSlot`: removes a card placement from one plan/date/zone while keeping the card in the candidate pool.
+
+Verification passed after deploy:
+
+- `addCandidateCard`: HTTP 200, created smoke-test card on Testing Board.
+- `updateCandidateCard`: HTTP 200, updated subtitle/note/tags/location only.
+- `searchCards`: HTTP 200 for query and missing-location filters.
+- `removeCardFromSlot`: HTTP 200, removed the smoke-test placement while card remained inspectable with no placements.
+- `deleteCandidateCard`: HTTP 400 `INVALID_ACTION`.
+- no API key: HTTP 401 `UNAUTHORIZED`.

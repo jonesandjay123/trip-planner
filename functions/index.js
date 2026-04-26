@@ -14,11 +14,13 @@ const FieldValue = admin.firestore.FieldValue;
 
 const TRIP_DOC_PATH = "trips/main";
 const VALID_ZONES = ["morning", "afternoon", "evening", "flexible"];
-const GPT_READONLY_ACTIONS = new Set(["inspectTrip", "inspectDay", "inspectCard"]);
+const GPT_READONLY_ACTIONS = new Set(["inspectTrip", "inspectDay", "inspectCard", "searchCards", "findCards"]);
 const GPT_MUTATION_ACTIONS = new Set([
   "addCandidateCard",
+  "updateCandidateCard",
   "appendCommentToCard",
   "moveCardToSlot",
+  "removeCardFromSlot",
   "renameDayLabel",
   "createBackup",
 ]);
@@ -482,6 +484,88 @@ function singleCardMatchOrResult(action, trip, payload) {
   };
 }
 
+function getScheduledCardIdSet(trip, {planId, date, zone} = {}) {
+  const scheduled = new Set();
+  for (const [currentPlanId, plan] of Object.entries(trip.plans || {})) {
+    if (planId && currentPlanId !== planId) continue;
+    for (const [currentDate, zones] of Object.entries(plan.days || {})) {
+      if (date && currentDate !== date) continue;
+      for (const [currentZone, ids] of Object.entries(zones || {})) {
+        if (zone && currentZone !== zone) continue;
+        if (Array.isArray(ids)) ids.forEach((id) => scheduled.add(id));
+      }
+    }
+  }
+  return scheduled;
+}
+
+function cardMatchesGptSearch(card, id, {query, tags, area, missingLocation}) {
+  if (query) {
+    const needle = String(query).trim().toLowerCase();
+    const haystack = [id, card.title, card.subtitle, card.area, card.note, ...(Array.isArray(card.tags) ? card.tags : [])]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+    if (!haystack.includes(needle)) return false;
+  }
+
+  if (area && !String(card.area || "").toLowerCase().includes(String(area).toLowerCase())) return false;
+
+  if (Array.isArray(tags) && tags.length) {
+    const cardTags = new Set((Array.isArray(card.tags) ? card.tags : []).map((tag) => String(tag).toLowerCase()));
+    const wanted = tags.map((tag) => String(tag).toLowerCase()).filter(Boolean);
+    if (!wanted.every((tag) => cardTags.has(tag))) return false;
+  }
+
+  if (missingLocation === true) {
+    const hasLocation = card.location && Number.isFinite(Number(card.location.lat)) && Number.isFinite(Number(card.location.lng));
+    if (hasLocation) return false;
+  }
+
+  return true;
+}
+
+async function searchCardsForGptAction(payload) {
+  const trip = sanitizeTripState(await getTripStateOrThrow());
+  const planId = payload.planId ? resolveActivePlanId(trip, payload.planId) : "";
+  let date = "";
+  if (payload.date) {
+    const plan = planId ? trip.plans?.[planId] : trip.plans?.[resolveActivePlanId(trip)];
+    if (plan) date = normalizeTripDateForGpt(payload.date, trip, plan);
+  }
+  const zone = normalizeGptZone(payload.zone);
+  const scheduledInScope = getScheduledCardIdSet(trip, {planId, date, zone});
+  const anyScheduled = getScheduledCardIdSet(trip);
+  const unscheduledOnly = payload.unscheduledOnly === true;
+  const limit = Math.max(1, Math.min(Number(payload.limit) || 20, 50));
+  const matches = [];
+
+  for (const [id, card] of Object.entries(trip.cards || {})) {
+    if (unscheduledOnly && anyScheduled.has(id)) continue;
+    if ((date || zone || planId) && !scheduledInScope.has(id)) continue;
+    if (!cardMatchesGptSearch(card, id, {
+      query: payload.query || payload.titleKeyword || payload.keyword || "",
+      tags: Array.isArray(payload.tags) ? payload.tags : [],
+      area: payload.area || "",
+      missingLocation: payload.missingLocation === true,
+    })) continue;
+
+    matches.push({
+      ...summarizeGptCard(trip, id),
+      placements: findGptCardPlacements(trip, id),
+    });
+    if (matches.length >= limit) break;
+  }
+
+  return {
+    ok: true,
+    action: "searchCards",
+    summary: `Found ${matches.length} matching card(s).`,
+    data: {matches, filters: {planId: planId || null, date: date || null, zone: zone || null, unscheduledOnly, missingLocation: payload.missingLocation === true}},
+    warnings: [],
+  };
+}
+
 async function inspectCardForGptAction(payload) {
   const trip = sanitizeTripState(await getTripStateOrThrow());
   const matches = findGptCardMatches(trip, {
@@ -572,6 +656,86 @@ async function addCandidateCardForGptAction(payload, actor) {
     data: {
       card: summarizeGptCard({cards: {[newCard.id]: newCard}}, newCard.id),
       placement,
+    },
+    warnings: [],
+  };
+}
+
+function buildGptCardPatch(input) {
+  const patch = {};
+  const source = input && typeof input === "object" ? input : {};
+  const stringFields = ["title", "subtitle", "area", "duration", "note", "source"];
+  for (const field of stringFields) {
+    if (Object.prototype.hasOwnProperty.call(source, field)) {
+      patch[field] = String(source[field] || "").trim();
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(source, "zone")) {
+    patch.zone = normalizeGptZone(source.zone) || "flexible";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(source, "tags")) {
+    patch.tags = normalizeTags(source.tags);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(source, "location")) {
+    if (source.location === null) {
+      patch.location = null;
+    } else if (source.location && typeof source.location === "object") {
+      const lat = Number(source.location.lat);
+      const lng = Number(source.location.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        throw new HttpsError("invalid-argument", "valid location.lat and location.lng are required when updating location");
+      }
+      patch.location = {
+        placeName: String(source.location.placeName || source.title || "").trim(),
+        address: String(source.location.address || "").trim(),
+        lat,
+        lng,
+        source: String(source.location.source || "manual").trim() || "manual",
+        confidence: String(source.location.confidence || "medium").trim() || "medium",
+        updatedAt: nowIso(),
+      };
+    }
+  }
+
+  return patch;
+}
+
+async function updateCandidateCardForGptAction(payload, actor) {
+  const patchInput = payload.patch && typeof payload.patch === "object" ? payload.patch : payload.card;
+  if (!patchInput || typeof patchInput !== "object") {
+    return {ok: false, action: "updateCandidateCard", summary: "patch or card object is required.", errorCode: "MISSING_PATCH", message: "patch or card object is required."};
+  }
+
+  const patch = buildGptCardPatch(patchInput);
+  if (Object.keys(patch).length === 0) {
+    return {ok: false, action: "updateCandidateCard", summary: "No supported card fields to update.", errorCode: "EMPTY_PATCH", message: "Supported fields: title, subtitle, area, duration, note, zone, tags, location."};
+  }
+
+  const trip = await getTripStateOrThrow();
+  const {match, result} = singleCardMatchOrResult("updateCandidateCard", trip, payload);
+  if (result) return result;
+
+  const {id: cardId, card: existing} = match;
+  const updatedCard = withAuditFields({
+    ...existing,
+    ...patch,
+    id: cardId,
+    comments: Array.isArray(existing.comments) ? existing.comments : [],
+  }, actor, "gptUpdateCandidateCard");
+
+  await tripRef().set(buildMergeObject([[`cards.${cardId}`, updatedCard]]), {merge: true});
+
+  return {
+    ok: true,
+    action: "updateCandidateCard",
+    summary: `Updated ${updatedCard.title || cardId}.`,
+    data: {
+      cardId,
+      updatedFields: Object.keys(patch),
+      card: summarizeGptCard({cards: {[cardId]: updatedCard}}, cardId),
     },
     warnings: [],
   };
@@ -674,6 +838,52 @@ async function moveCardToSlotForGptAction(payload, actor) {
     action: "moveCardToSlot",
     summary: `Moved ${moved.title} to ${moved.date} ${moved.zone}.`,
     data: moved,
+    warnings: [],
+  };
+}
+
+async function removeCardFromSlotForGptAction(payload, actor) {
+  const rawDate = String(payload.date || payload.targetDate || "").trim();
+  const zone = normalizeGptZone(payload.zone || payload.targetZone);
+  if (!rawDate || !zone) {
+    return {ok: false, action: "removeCardFromSlot", summary: "date and valid zone are required.", errorCode: "MISSING_TARGET_SLOT", message: "date and valid zone are required."};
+  }
+
+  let removed = null;
+  await db.runTransaction(async (tx) => {
+    const ref = tripRef();
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Trip document not found");
+    const trip = snap.data();
+    const {match, result} = singleCardMatchOrResult("removeCardFromSlot", trip, payload);
+    if (result) throw new HttpsError("invalid-argument", JSON.stringify(result));
+
+    const cardId = match.id;
+    const planId = resolveActivePlanId(trip, payload.planId);
+    const plan = planId ? trip.plans?.[planId] : null;
+    if (!plan) throw new HttpsError("not-found", "Plan not found");
+    const date = normalizeTripDateForGpt(rawDate, trip, plan);
+    if (!plan.days?.[date]) throw new HttpsError("not-found", "Date not found in plan");
+
+    const currentIds = Array.isArray(plan.days[date][zone]) ? plan.days[date][zone] : [];
+    if (!currentIds.includes(cardId)) {
+      throw new HttpsError("not-found", "Card is not scheduled in the specified slot");
+    }
+
+    const nextIds = currentIds.filter((id) => id !== cardId);
+    tx.set(ref, buildMergeObject([
+      [`plans.${planId}.days.${date}.${zone}`, nextIds],
+      [`cards.${cardId}`, withAuditFields(trip.cards[cardId], actor, "gptRemoveCardFromSlot")],
+    ]), {merge: true});
+
+    removed = {cardId, title: match.card.title || cardId, planId, date, zone, removedCount: currentIds.length - nextIds.length};
+  });
+
+  return {
+    ok: true,
+    action: "removeCardFromSlot",
+    summary: `Removed ${removed.title} from ${removed.date} ${removed.zone}; card remains in candidate pool.`,
+    data: removed,
     warnings: [],
   };
 }
@@ -914,8 +1124,10 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
         result = await inspectTripForGptAction(payload);
       } else if (action === "inspectDay") {
         result = await inspectDayForGptAction(payload);
-      } else {
+      } else if (action === "inspectCard") {
         result = await inspectCardForGptAction(payload);
+      } else {
+        result = await searchCardsForGptAction(payload);
       }
       status = result.ok ? 200 : 400;
     } else if (GPT_MUTATION_ACTIONS.has(action)) {
@@ -923,10 +1135,14 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
       riskLevel = action === "createBackup" ? "backup" : "write-low";
       if (action === "addCandidateCard") {
         result = await addCandidateCardForGptAction(payload, gptActor);
+      } else if (action === "updateCandidateCard") {
+        result = await updateCandidateCardForGptAction(payload, gptActor);
       } else if (action === "appendCommentToCard") {
         result = await appendCommentToCardForGptAction(payload, gptActor);
       } else if (action === "moveCardToSlot") {
         result = await moveCardToSlotForGptAction(payload, gptActor);
+      } else if (action === "removeCardFromSlot") {
+        result = await removeCardFromSlotForGptAction(payload, gptActor);
       } else if (action === "renameDayLabel") {
         result = await renameDayLabelForGptAction(payload, gptActor);
       } else {
@@ -951,7 +1167,7 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
         action,
         summary: `Invalid action: ${action}.`,
         errorCode: "INVALID_ACTION",
-        message: "Allowed actions are inspectTrip, inspectDay, inspectCard, addCandidateCard, appendCommentToCard, moveCardToSlot, renameDayLabel, and createBackup.",
+        message: "Allowed actions are inspectTrip, inspectDay, inspectCard, searchCards, addCandidateCard, updateCandidateCard, appendCommentToCard, moveCardToSlot, removeCardFromSlot, renameDayLabel, and createBackup.",
       };
     }
 

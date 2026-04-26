@@ -20,6 +20,7 @@ const GPT_MUTATION_ACTIONS = new Set([
   "updateCandidateCard",
   "appendCommentToCard",
   "moveCardToSlot",
+  "moveCardsToSlot",
   "removeCardFromSlot",
   "renameDayLabel",
   "createBackup",
@@ -842,6 +843,93 @@ async function moveCardToSlotForGptAction(payload, actor) {
   };
 }
 
+async function moveCardsToSlotForGptAction(payload, actor) {
+  const rawDate = String(payload.date || payload.targetDate || "").trim();
+  const zone = normalizeGptZone(payload.zone || payload.targetZone);
+  const cardIds = Array.isArray(payload.cardIds) ?
+    [...new Set(payload.cardIds.map((id) => String(id || "").trim()).filter(Boolean))] : [];
+
+  if (!cardIds.length) {
+    return {
+      ok: false,
+      action: "moveCardsToSlot",
+      summary: "cardIds array is required.",
+      errorCode: "MISSING_CARD_IDS",
+      message: "Provide explicit cardIds. moveCardsToSlot does not accept fuzzy query-based batch moves.",
+    };
+  }
+
+  if (!rawDate || !zone) {
+    return {
+      ok: false,
+      action: "moveCardsToSlot",
+      summary: "date and valid zone are required.",
+      errorCode: "MISSING_TARGET_SLOT",
+      message: "date and valid zone are required.",
+    };
+  }
+
+  let moved = null;
+  await db.runTransaction(async (tx) => {
+    const ref = tripRef();
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Trip document not found");
+    const trip = snap.data();
+    const missingCardIds = cardIds.filter((cardId) => !trip.cards?.[cardId]);
+    if (missingCardIds.length) {
+      throw new HttpsError("not-found", `Card(s) not found: ${missingCardIds.join(", ")}`);
+    }
+
+    const planId = resolveActivePlanId(trip, payload.planId);
+    const plan = planId ? trip.plans?.[planId] : null;
+    if (!plan) throw new HttpsError("not-found", "Plan not found");
+    const date = normalizeTripDateForGpt(rawDate, trip, plan);
+    if (!plan.days?.[date]) throw new HttpsError("not-found", "Date not found in plan");
+
+    let nextPlan = plan;
+    for (const cardId of cardIds) {
+      nextPlan = removeCardFromPlan(nextPlan, cardId);
+    }
+
+    const nextZones = {...(nextPlan.days[date] || {})};
+    const targetItems = Array.isArray(nextZones[zone]) ? [...nextZones[zone]] : [];
+    const existingTarget = new Set(targetItems);
+    const appendedCardIds = cardIds.filter((cardId) => !existingTarget.has(cardId));
+    nextZones[zone] = [...targetItems, ...appendedCardIds];
+    nextPlan = {
+      ...nextPlan,
+      days: {
+        ...nextPlan.days,
+        [date]: nextZones,
+      },
+    };
+
+    const updates = [[`plans.${planId}`, nextPlan]];
+    for (const cardId of cardIds) {
+      updates.push([`cards.${cardId}`, withAuditFields(trip.cards[cardId], actor, "gptMoveCardsToSlot")]);
+    }
+
+    tx.set(ref, buildMergeObject(updates), {merge: true});
+
+    moved = {
+      cardIds,
+      movedCards: cardIds.map((cardId) => ({cardId, title: trip.cards[cardId]?.title || cardId})),
+      planId,
+      date,
+      zone,
+      appendedCount: appendedCardIds.length,
+    };
+  });
+
+  return {
+    ok: true,
+    action: "moveCardsToSlot",
+    summary: `Moved ${moved.cardIds.length} card(s) to ${moved.date} ${moved.zone}.`,
+    data: moved,
+    warnings: [],
+  };
+}
+
 async function removeCardFromSlotForGptAction(payload, actor) {
   const rawDate = String(payload.date || payload.targetDate || "").trim();
   const zone = normalizeGptZone(payload.zone || payload.targetZone);
@@ -1141,6 +1229,8 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
         result = await appendCommentToCardForGptAction(payload, gptActor);
       } else if (action === "moveCardToSlot") {
         result = await moveCardToSlotForGptAction(payload, gptActor);
+      } else if (action === "moveCardsToSlot") {
+        result = await moveCardsToSlotForGptAction(payload, gptActor);
       } else if (action === "removeCardFromSlot") {
         result = await removeCardFromSlotForGptAction(payload, gptActor);
       } else if (action === "renameDayLabel") {
@@ -1167,7 +1257,7 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
         action,
         summary: `Invalid action: ${action}.`,
         errorCode: "INVALID_ACTION",
-        message: "Allowed actions are inspectTrip, inspectDay, inspectCard, searchCards, addCandidateCard, updateCandidateCard, appendCommentToCard, moveCardToSlot, removeCardFromSlot, renameDayLabel, and createBackup.",
+        message: "Allowed actions are inspectTrip, inspectDay, inspectCard, searchCards, addCandidateCard, updateCandidateCard, appendCommentToCard, moveCardToSlot, moveCardsToSlot, removeCardFromSlot, renameDayLabel, and createBackup.",
       };
     }
 

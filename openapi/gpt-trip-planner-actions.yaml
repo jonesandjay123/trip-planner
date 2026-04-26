@@ -13,7 +13,7 @@ paths:
       operationId: gptTripPlannerAction
       summary: Operate Jones private Tokyo May 2026 trip planner.
       description: |
-        Private planner ops gateway. Enables reads/search plus card update, add, comment, move/remove slot, label rename, and backup. Root writes disabled.
+        Private planner ops gateway. Enables reads/search plus card update, add, comment, single/batch move, remove slot, label rename, and backup. Root writes disabled.
       security:
         - bearerAuth: []
       requestBody:
@@ -71,6 +71,12 @@ paths:
                   cardId: akihabara
                   date: '5/2'
                   zone: afternoon
+              moveCardsToSlot:
+                value:
+                  action: moveCardsToSlot
+                  cardIds: [js_yodobashi, js_super_potato]
+                  date: '5/2'
+                  zone: flexible
               removeCardFromSlot:
                 value:
                   action: removeCardFromSlot
@@ -165,6 +171,7 @@ components:
             - updateCandidateCard
             - appendCommentToCard
             - moveCardToSlot
+            - moveCardsToSlot
             - removeCardFromSlot
             - renameDayLabel
             - createBackup
@@ -178,7 +185,12 @@ components:
           $ref: '#/components/schemas/Zone'
         cardId:
           type: string
-          description: Existing card id for inspect, comment, or move.
+          description: Existing card id for inspect, comment, or single-card move.
+        cardIds:
+          type: array
+          items:
+            type: string
+          description: Explicit card ids for moveCardsToSlot. Fuzzy batch moves are not supported.
         titleKeyword:
           type: string
           description: Card title keyword when cardId is unknown.

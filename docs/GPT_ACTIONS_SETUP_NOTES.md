@@ -206,3 +206,23 @@ Verification passed after deploy:
 - `removeCardFromSlot`: HTTP 200, removed the smoke-test placement while card remained inspectable with no placements.
 - `deleteCandidateCard`: HTTP 400 `INVALID_ACTION`.
 - no API key: HTTP 401 `UNAUTHORIZED`.
+
+## 2026-04-26 batch move convenience action
+
+Added `moveCardsToSlot` so the Custom GPT can apply an already-decided day optimization with fewer tool calls.
+
+Safety shape:
+
+- Requires explicit `cardIds: string[]`.
+- Does not accept fuzzy queries for batch moves.
+- Moves cards within one selected/default plan to one target `date` / `zone`.
+- Does not delete cards or perform arbitrary writes.
+- Writes normal `tripPlannerActionLogs` audit entries.
+
+Verification passed after deploy:
+
+- Created two smoke-test cards on Testing Board 2026-05-06 flexible.
+- `moveCardsToSlot` moved both to Testing Board 2026-05-06 evening in one call.
+- `inspectDay` confirmed both cards in the evening slot.
+- Calling `moveCardsToSlot` without `cardIds` returned HTTP 400 `MISSING_CARD_IDS`.
+- `bulkOverwrite` remained blocked with `ACTION_NOT_ENABLED`.

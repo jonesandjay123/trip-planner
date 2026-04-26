@@ -21,6 +21,7 @@ import PlanSelector from './components/PlanSelector';
 import NicknameModal from './components/NicknameModal';
 import AiModal from './components/AiModal';
 import DayMapModal from './components/DayMapModal';
+import ShareTripModal, { TRIP_URL } from './components/ShareTripModal';
 import { useNickname } from './hooks/useNickname';
 import { ownerEmail } from './firebase';
 import { logOut, signInWithGoogle, subscribeToAuthState } from './lib/auth';
@@ -115,6 +116,7 @@ export default function App() {
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [mapModalDay, setMapModalDay] = useState(null);
   const [mapModalCardId, setMapModalCardId] = useState(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [candidatePanelOpen, setCandidatePanelOpen] = useState(false);
   const [mobileDay, setMobileDay] = useState(() => localStorage.getItem(MOBILE_DAY_KEY) || '');
   const [authLoading, setAuthLoading] = useState(true);
@@ -637,6 +639,23 @@ export default function App() {
     }
   }
 
+  async function handleShareTrip() {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: state.tripMeta.title || 'Tokyo Trip 2026',
+          text: 'Open the Tokyo Trip Planner',
+          url: TRIP_URL,
+        });
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+
+    setShareModalOpen(true);
+  }
+
   function handleDayLabelChange(date, label) {
     if (!requireEditable()) return;
     updateActivePlan((plan) => ({
@@ -700,6 +719,7 @@ export default function App() {
           endDate={state.tripMeta.endDate}
           onTripNameChange={handleTripNameChange}
           onExport={handleExport}
+          onShareTrip={handleShareTrip}
           onDeleteActivePlan={() => handleDeletePlan(state.tripMeta.activePlanId)}
           canDeletePlan={canEdit && (state.planOrder || []).length > 1}
           canEdit={canEdit}
@@ -844,6 +864,10 @@ export default function App() {
           subtitleOverride="單一景點地圖預覽"
           onClose={() => setMapModalCardId(null)}
         />
+      )}
+
+      {shareModalOpen && (
+        <ShareTripModal onClose={() => setShareModalOpen(false)} />
       )}
 
       {aiModalOpen && (

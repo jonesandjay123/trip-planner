@@ -16,6 +16,7 @@ export default function Header({
   endDate,
   onTripNameChange,
   onExport,
+  onShareTrip,
   onDeleteActivePlan,
   canDeletePlan,
   canEdit,
@@ -127,6 +128,9 @@ export default function Header({
           <button className="btn btn-export" onClick={onExport}>
             📋 匯出
           </button>
+          <button className="btn btn-export" onClick={onShareTrip}>
+            📱 分享
+          </button>
           {canEdit && (
             <button
               className="btn btn-reset"
@@ -180,6 +184,7 @@ export default function Header({
         <div className="mobile-header-menu" ref={mobileMenuPanelRef}>
           <button onClick={() => runMobileAction(onToggleDark)}>{darkMode ? '☀️ 淺色模式' : '🌙 深色模式'}</button>
           <button onClick={() => runMobileAction(onExport)}>📋 匯出行程</button>
+          <button onClick={() => runMobileAction(onShareTrip)}>📤 分享行程</button>
           {canEdit && (
             <button disabled={!canDeletePlan} onClick={() => runMobileAction(onDeleteActivePlan)}>
               🗑️ {canDeletePlan ? `刪除目前方案${activePlanName ? `：${activePlanName}` : ''}` : '只剩一個方案，不能刪除'}

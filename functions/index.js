@@ -14,14 +14,15 @@ const FieldValue = admin.firestore.FieldValue;
 
 const TRIP_DOC_PATH = "trips/main";
 const VALID_ZONES = ["morning", "afternoon", "evening", "flexible"];
-const GPT_READONLY_ACTIONS = new Set(["inspectTrip", "inspectDay"]);
-const GPT_DISABLED_ACTIONS = new Set([
-  "inspectCard",
+const GPT_READONLY_ACTIONS = new Set(["inspectTrip", "inspectDay", "inspectCard"]);
+const GPT_MUTATION_ACTIONS = new Set([
   "addCandidateCard",
   "appendCommentToCard",
   "moveCardToSlot",
   "renameDayLabel",
   "createBackup",
+]);
+const GPT_DISABLED_ACTIONS = new Set([
   "reset",
   "restore",
   "delete",
@@ -377,6 +378,356 @@ function normalizeGptZone(rawZone) {
   return GPT_ZONE_ORDER.includes(zone) ? zone : "";
 }
 
+function getGptActor(rawActor) {
+  return {
+    uid: "custom-gpt-action",
+    email: "custom-gpt-action@local",
+    displayName: String(rawActor || "Trip Planner GPT").slice(0, 120),
+  };
+}
+
+function generateGptCardId() {
+  return `gpt_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`;
+}
+
+function normalizeGptCardInput(input, actor) {
+  const card = normalizeCardInput({
+    ...(input || {}),
+    id: generateGptCardId(),
+    source: "custom-gpt-action",
+  }, {preserveComments: false});
+
+  if (input && typeof input === "object" && String(input.zone || "").trim()) {
+    const zone = normalizeGptZone(input.zone);
+    card.zone = zone || "flexible";
+  }
+
+  return withAuditFields({...card, comments: []}, actor, "gptAddCandidateCard");
+}
+
+function findGptCardMatches(trip, {cardId, query, title}) {
+  const cards = trip.cards || {};
+  const explicitId = String(cardId || "").trim();
+  if (explicitId) {
+    return cards[explicitId] ? [{id: explicitId, card: cards[explicitId]}] : [];
+  }
+
+  const needle = String(query || title || "").trim().toLowerCase();
+  if (!needle) return [];
+
+  return Object.entries(cards)
+      .filter(([id, card]) => {
+        const haystack = [
+          id,
+          card?.title,
+          card?.subtitle,
+          card?.area,
+        ].filter(Boolean).join(" ").toLowerCase();
+        return haystack.includes(needle);
+      })
+      .slice(0, 8)
+      .map(([id, card]) => ({id, card}));
+}
+
+function findGptCardPlacements(trip, cardId) {
+  const placements = [];
+  for (const [planId, plan] of Object.entries(trip.plans || {})) {
+    for (const [date, zones] of Object.entries(plan.days || {})) {
+      for (const [zone, ids] of Object.entries(zones || {})) {
+        if (Array.isArray(ids) && ids.includes(cardId)) {
+          placements.push({planId, planName: plan.name || planId, date, zone});
+        }
+      }
+    }
+  }
+  return placements;
+}
+
+function ambiguousCardResult(action, matches) {
+  return {
+    ok: false,
+    action,
+    summary: `Multiple cards matched (${matches.length}); provide cardId before mutating.`,
+    errorCode: "AMBIGUOUS_CARD_MATCH",
+    message: "Multiple cards matched. Please choose a cardId.",
+    data: {
+      matches: matches.map(({id, card}) => ({
+        id,
+        title: card.title || id,
+        subtitle: card.subtitle || "",
+        area: card.area || "",
+      })),
+    },
+  };
+}
+
+function singleCardMatchOrResult(action, trip, payload) {
+  const matches = findGptCardMatches(trip, {
+    cardId: payload.cardId,
+    query: payload.query || payload.titleKeyword || payload.keyword,
+    title: payload.title,
+  });
+
+  if (matches.length === 1) return {match: matches[0]};
+  if (matches.length > 1) return {result: ambiguousCardResult(action, matches)};
+
+  return {
+    result: {
+      ok: false,
+      action,
+      summary: "Card not found.",
+      errorCode: "CARD_NOT_FOUND",
+      message: "Provide a valid cardId or a more specific title keyword.",
+    },
+  };
+}
+
+async function inspectCardForGptAction(payload) {
+  const trip = sanitizeTripState(await getTripStateOrThrow());
+  const matches = findGptCardMatches(trip, {
+    cardId: payload.cardId,
+    query: payload.query || payload.titleKeyword || payload.keyword,
+    title: payload.title,
+  });
+
+  if (matches.length === 0) {
+    return {
+      ok: false,
+      action: "inspectCard",
+      summary: "Card not found.",
+      errorCode: "CARD_NOT_FOUND",
+      message: "Provide cardId or title keyword.",
+    };
+  }
+
+  if (matches.length > 1) {
+    return ambiguousCardResult("inspectCard", matches);
+  }
+
+  const {id, card} = matches[0];
+  return {
+    ok: true,
+    action: "inspectCard",
+    summary: `Found card ${card.title || id}.`,
+    data: {
+      card: {
+        id,
+        title: card.title || id,
+        subtitle: card.subtitle || "",
+        area: card.area || "",
+        duration: card.duration || "",
+        zone: card.zone || "",
+        note: card.note || "",
+        tags: Array.isArray(card.tags) ? card.tags : [],
+        location: card.location || null,
+        comments: Array.isArray(card.comments) ? card.comments : [],
+      },
+      placements: findGptCardPlacements(trip, id),
+    },
+    warnings: [],
+  };
+}
+
+async function addCandidateCardForGptAction(payload, actor) {
+  const cardInput = payload.card && typeof payload.card === "object" ? payload.card : payload;
+  const targetDateRaw = String(payload.date || cardInput.date || "").trim();
+  const targetZone = normalizeGptZone(payload.zone || cardInput.zone);
+  const newCard = normalizeGptCardInput(cardInput, actor);
+  let placement = null;
+
+  await db.runTransaction(async (tx) => {
+    const ref = tripRef();
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Trip document not found");
+    const trip = snap.data();
+    const cardOrder = Array.isArray(trip.cardOrder) ? trip.cardOrder : [];
+    const updates = [
+      [`cards.${newCard.id}`, newCard],
+      ["cardOrder", [newCard.id, ...cardOrder.filter((id) => id !== newCard.id)]],
+    ];
+
+    if (targetDateRaw || targetZone) {
+      const planId = resolveActivePlanId(trip, payload.planId);
+      const plan = planId ? trip.plans?.[planId] : null;
+      if (!plan) throw new HttpsError("not-found", "Plan not found");
+      const date = normalizeTripDateForGpt(targetDateRaw, trip, plan);
+      const zone = targetZone || newCard.zone || "flexible";
+      if (!targetDateRaw || !date) throw new HttpsError("invalid-argument", "date is required when placing a card");
+      if (!GPT_ZONE_ORDER.includes(zone)) throw new HttpsError("invalid-argument", "valid zone is required");
+      if (!plan.days?.[date]) throw new HttpsError("not-found", "Date not found in plan");
+      const nextZoneIds = Array.isArray(plan.days[date][zone]) ? [...plan.days[date][zone], newCard.id] : [newCard.id];
+      updates.push([`plans.${planId}.days.${date}.${zone}`, nextZoneIds]);
+      placement = {planId, date, zone, index: nextZoneIds.length - 1};
+    }
+
+    tx.set(ref, buildMergeObject(updates), {merge: true});
+  });
+
+  return {
+    ok: true,
+    action: "addCandidateCard",
+    summary: placement ?
+      `Added ${newCard.title} and placed it on ${placement.date} ${placement.zone}.` :
+      `Added ${newCard.title} to the candidate card pool.`,
+    data: {
+      card: summarizeGptCard({cards: {[newCard.id]: newCard}}, newCard.id),
+      placement,
+    },
+    warnings: [],
+  };
+}
+
+async function appendCommentToCardForGptAction(payload, actor) {
+  const text = String(payload.text || payload.comment || "").trim();
+  if (!text) {
+    return {ok: false, action: "appendCommentToCard", summary: "text is required.", errorCode: "MISSING_TEXT", message: "text is required."};
+  }
+
+  const trip = await getTripStateOrThrow();
+  const {match, result} = singleCardMatchOrResult("appendCommentToCard", trip, payload);
+  if (result) return result;
+
+  const {id: cardId, card: existing} = match;
+  const comment = {
+    text,
+    timestamp: nowIso(),
+    author: actor.displayName,
+    authorEmail: actor.email,
+    authorUid: actor.uid,
+    source: "custom-gpt-action",
+  };
+  const updatedCard = withAuditFields({
+    ...existing,
+    comments: [...(Array.isArray(existing.comments) ? existing.comments : []), comment],
+  }, actor, "gptAppendCommentToCard");
+
+  await tripRef().set(buildMergeObject([[`cards.${cardId}`, updatedCard]]), {merge: true});
+
+  return {
+    ok: true,
+    action: "appendCommentToCard",
+    summary: `Appended comment to ${existing.title || cardId}.`,
+    data: {cardId, comment, commentCount: updatedCard.comments.length},
+    warnings: [],
+  };
+}
+
+async function moveCardToSlotForGptAction(payload, actor) {
+  const rawDate = String(payload.date || payload.targetDate || "").trim();
+  const zone = normalizeGptZone(payload.zone || payload.targetZone);
+  if (!rawDate || !zone) {
+    return {ok: false, action: "moveCardToSlot", summary: "date and valid zone are required.", errorCode: "MISSING_TARGET_SLOT", message: "date and valid zone are required."};
+  }
+
+  let moved = null;
+  await db.runTransaction(async (tx) => {
+    const ref = tripRef();
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "Trip document not found");
+    const trip = snap.data();
+    const {match, result} = singleCardMatchOrResult("moveCardToSlot", trip, payload);
+    if (result) throw new HttpsError("invalid-argument", JSON.stringify(result));
+
+    const cardId = match.id;
+    const planId = resolveActivePlanId(trip, payload.planId);
+    const plan = planId ? trip.plans?.[planId] : null;
+    if (!plan) throw new HttpsError("not-found", "Plan not found");
+    const date = normalizeTripDateForGpt(rawDate, trip, plan);
+    if (!plan.days?.[date]) throw new HttpsError("not-found", "Date not found in plan");
+
+    const beforePlacements = findGptCardPlacements(trip, cardId).filter((p) => p.planId === planId);
+    const cleanedPlan = removeCardFromPlan(plan, cardId);
+    const nextZones = {...(cleanedPlan.days[date] || {})};
+    const targetItems = Array.isArray(nextZones[zone]) ? [...nextZones[zone]] : [];
+    const indexInput = payload.index;
+    const rawIndex = Number.isInteger(indexInput) ? indexInput : targetItems.length;
+    const boundedIndex = Math.max(0, Math.min(rawIndex, targetItems.length));
+    targetItems.splice(boundedIndex, 0, cardId);
+    nextZones[zone] = targetItems;
+
+    const nextPlan = {
+      ...cleanedPlan,
+      days: {
+        ...cleanedPlan.days,
+        [date]: nextZones,
+      },
+    };
+
+    tx.set(ref, buildMergeObject([
+      [`plans.${planId}`, nextPlan],
+      [`cards.${cardId}`, withAuditFields(trip.cards[cardId], actor, "gptMoveCardToSlot")],
+    ]), {merge: true});
+
+    moved = {
+      cardId,
+      title: match.card.title || cardId,
+      planId,
+      date,
+      zone,
+      index: boundedIndex,
+      beforePlacements,
+    };
+  });
+
+  return {
+    ok: true,
+    action: "moveCardToSlot",
+    summary: `Moved ${moved.title} to ${moved.date} ${moved.zone}.`,
+    data: moved,
+    warnings: [],
+  };
+}
+
+async function renameDayLabelForGptAction(payload, actor) {
+  const rawDate = String(payload.date || "").trim();
+  const label = String(payload.label || "").trim();
+  if (!rawDate || !label) {
+    return {ok: false, action: "renameDayLabel", summary: "date and label are required.", errorCode: "MISSING_DATE_OR_LABEL", message: "date and label are required."};
+  }
+
+  const trip = await getTripStateOrThrow();
+  const planId = resolveActivePlanId(trip, payload.planId);
+  const plan = planId ? trip.plans?.[planId] : null;
+  if (!plan) return {ok: false, action: "renameDayLabel", summary: "Plan not found.", errorCode: "PLAN_NOT_FOUND", message: "Plan not found."};
+  const date = normalizeTripDateForGpt(rawDate, trip, plan);
+  if (!plan.days?.[date]) return {ok: false, action: "renameDayLabel", summary: "Date not found in plan.", errorCode: "DAY_NOT_FOUND", message: "Date not found in plan."};
+
+  await tripRef().set(buildMergeObject([
+    [`plans.${planId}.dayLabels.${date}`, label],
+    ["tripMeta.updatedAt", nowIso()],
+    ["tripMeta.updatedByEmail", actor.email],
+    ["tripMeta.updatedByUid", actor.uid],
+  ]), {merge: true});
+
+  return {
+    ok: true,
+    action: "renameDayLabel",
+    summary: `Renamed ${date} label to ${label}.`,
+    data: {planId, date, label},
+    warnings: [],
+  };
+}
+
+async function createBackupForGptAction(payload, actor) {
+  const label = String(payload.label || "gpt-action").trim() || "gpt-action";
+  const reason = String(payload.reason || "Created by Trip Planner GPT Action").trim();
+  const backup = await createTripBackup(actor, {label, reason, mode: "custom-gpt-action"});
+  return {
+    ok: true,
+    action: "createBackup",
+    summary: `Created trip backup ${backup.backupId}.`,
+    data: {
+      backupId: backup.backupId,
+      path: `trips/${backup.backupId}`,
+      createdAt: backup.createdAt,
+      label: backup.label,
+      reason: backup.reason,
+      backupSummary: backup.summary,
+    },
+    warnings: [],
+  };
+}
+
 function buildGptActionResponse({auditId, ...body}) {
   return {
     auditId,
@@ -559,9 +910,28 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
         message: "action is required.",
       };
     } else if (GPT_READONLY_ACTIONS.has(action)) {
-      result = action === "inspectTrip" ?
-        await inspectTripForGptAction(payload) :
-        await inspectDayForGptAction(payload);
+      if (action === "inspectTrip") {
+        result = await inspectTripForGptAction(payload);
+      } else if (action === "inspectDay") {
+        result = await inspectDayForGptAction(payload);
+      } else {
+        result = await inspectCardForGptAction(payload);
+      }
+      status = result.ok ? 200 : 400;
+    } else if (GPT_MUTATION_ACTIONS.has(action)) {
+      const gptActor = getGptActor(actor);
+      riskLevel = action === "createBackup" ? "backup" : "write-low";
+      if (action === "addCandidateCard") {
+        result = await addCandidateCardForGptAction(payload, gptActor);
+      } else if (action === "appendCommentToCard") {
+        result = await appendCommentToCardForGptAction(payload, gptActor);
+      } else if (action === "moveCardToSlot") {
+        result = await moveCardToSlotForGptAction(payload, gptActor);
+      } else if (action === "renameDayLabel") {
+        result = await renameDayLabelForGptAction(payload, gptActor);
+      } else {
+        result = await createBackupForGptAction(payload, gptActor);
+      }
       status = result.ok ? 200 : 400;
     } else if (GPT_DISABLED_ACTIONS.has(action)) {
       status = 400;
@@ -569,7 +939,7 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
       result = {
         ok: false,
         action,
-        summary: "ACTION_NOT_ENABLED: this read-only MVP enables only inspectTrip and inspectDay.",
+        summary: "ACTION_NOT_ENABLED: this private ops endpoint does not enable the requested root/admin action.",
         errorCode: "ACTION_NOT_ENABLED",
         message: "Mutation, backup, reset, restore, repair, delete, bulk, and card-level actions are intentionally disabled.",
       };
@@ -581,7 +951,7 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
         action,
         summary: `Invalid action: ${action}.`,
         errorCode: "INVALID_ACTION",
-        message: "Allowed MVP actions are inspectTrip and inspectDay.",
+        message: "Allowed actions are inspectTrip, inspectDay, inspectCard, addCandidateCard, appendCommentToCard, moveCardToSlot, renameDayLabel, and createBackup.",
       };
     }
 
@@ -595,13 +965,35 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
     sendGptActionJson(response, status, buildGptActionResponse({auditId, ...result}));
   } catch (error) {
     logger.error("gptTripPlannerAction failed", {action, error});
-    const result = {
+    let status = 500;
+    let result = {
       ok: false,
       action: action || "unknown",
       summary: "Internal error while handling GPT Trip Planner action.",
       errorCode: "INTERNAL",
       message: error && error.message ? error.message : "Unknown error",
     };
+
+    if (error instanceof HttpsError) {
+      status = error.code === "not-found" ? 404 : 400;
+      if (typeof error.message === "string" && error.message.trim().startsWith("{")) {
+        try {
+          result = JSON.parse(error.message);
+          status = result.ok === false ? 400 : status;
+        } catch (parseError) {
+          logger.warn("Failed to parse GPT action HttpsError payload", {parseError});
+        }
+      } else {
+        result = {
+          ok: false,
+          action: action || "unknown",
+          summary: error.message || "Invalid GPT Trip Planner action request.",
+          errorCode: String(error.code || "invalid-argument").toUpperCase().replace(/-/g, "_"),
+          message: error.message || "Invalid GPT Trip Planner action request.",
+        };
+      }
+    }
+
     let auditId = `gpt_action_error_${Date.now()}`;
     try {
       auditId = await appendGptActionLog({
@@ -614,7 +1006,7 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoke
     } catch (auditError) {
       logger.error("Failed to write GPT action audit log", {auditError});
     }
-    sendGptActionJson(response, 500, buildGptActionResponse({auditId, ...result}));
+    sendGptActionJson(response, status, buildGptActionResponse({auditId, ...result}));
   }
 });
 

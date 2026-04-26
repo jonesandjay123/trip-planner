@@ -3,9 +3,7 @@ info:
   title: Trip Planner GPT Actions API
   version: 0.1.0
   description: |
-    OpenAPI schema for Jones's Trip Planner Custom GPT Actions read-only MVP.
-    The endpoint currently enables only inspectTrip and inspectDay.
-    Mutation, backup, reset, restore, delete, repair, bulk import, and full-document overwrite actions are disabled server-side.
+    Private Trip Planner ops action for Jones. Enables read and normal planner mutations. Root/admin arbitrary writes remain unavailable.
 servers:
   - url: https://us-central1-trip-planner-ab5a9.cloudfunctions.net
     description: Firebase Functions base origin for Trip Planner GPT Actions.
@@ -13,9 +11,9 @@ paths:
   /gptTripPlannerAction:
     post:
       operationId: gptTripPlannerAction
-      summary: Inspect the active Tokyo May 2026 trip planner.
+      summary: Operate Jones private Tokyo May 2026 trip planner.
       description: |
-        Read-only Trip Planner gateway. MVP enables inspectTrip and inspectDay only; all mutations return ACTION_NOT_ENABLED.
+        Private planner ops gateway. Enables reads plus add card, comment, move, label rename, and backup. Root/admin writes disabled.
       security:
         - bearerAuth: []
       requestBody:
@@ -33,17 +31,43 @@ paths:
                   action: inspectDay
                   date: '5/2'
                   zone: afternoon
-              disabledMutation:
+              inspectCard:
+                value:
+                  action: inspectCard
+                  titleKeyword: 秋葉原
+              addCandidateCard:
                 value:
                   action: addCandidateCard
+                  date: '5/3'
+                  zone: afternoon
                   card:
                     title: 中野百老匯
                     subtitle: Nakano Broadway
                     area: Nakano
-                    zone: afternoon
                     duration: 2-3 hr
-                    note: Server returns ACTION_NOT_ENABLED during the read-only MVP.
+                    note: 候選購物點
                     tags: [購物, 動漫, 模型]
+              appendCommentToCard:
+                value:
+                  action: appendCommentToCard
+                  titleKeyword: 秋葉原
+                  text: 旅途中備註
+              moveCardToSlot:
+                value:
+                  action: moveCardToSlot
+                  cardId: akihabara
+                  date: '5/2'
+                  zone: afternoon
+              renameDayLabel:
+                value:
+                  action: renameDayLabel
+                  date: '5/2'
+                  label: 肉屋橫町＋秋葉原
+              createBackup:
+                value:
+                  action: createBackup
+                  label: before-voice-ops
+                  reason: Before GPT voice edits
       responses:
         '200':
           description: Action result.
@@ -63,7 +87,7 @@ components:
   schemas:
     Zone:
       type: string
-      enum: [morning, afternoon, evening, flexible]
+      enum: [morning, afternoon, evening, night, flexible]
     LocationInput:
       type: object
       additionalProperties: false
@@ -131,6 +155,13 @@ components:
           $ref: '#/components/schemas/Zone'
         cardId:
           type: string
+          description: Existing card id for inspect, comment, or move.
+        titleKeyword:
+          type: string
+          description: Card title keyword when cardId is unknown.
+        query:
+          type: string
+          description: Generic card search query.
         card:
           $ref: '#/components/schemas/CandidateCardInput'
         text:
@@ -138,7 +169,7 @@ components:
           description: Comment text for appendCommentToCard.
         label:
           type: string
-          description: Day label or backup label depending on action.
+          description: Day label for renameDayLabel or backup label for createBackup.
         reason:
           type: string
           description: Backup reason for createBackup.

@@ -150,3 +150,42 @@ Verification passed:
 - `inspectTrip` returned HTTP 200, active plan `plan_1777054282117`, trip `Tokyo Trip 2026`, 3 plans, 83 cards.
 - `inspectDay` with `date: "5/2"`, `zone: "afternoon"` returned HTTP 200, normalized date `2026-05-02`, label `🥩 肉屋橫町＋秋葉原`, 10 afternoon cards.
 - `addCandidateCard` returned HTTP 400 with `ACTION_NOT_ENABLED`.
+
+## 2026-04-26 full planner ops unlock
+
+Enabled private ops actions for Jones's travel-use Custom GPT:
+
+- `inspectTrip`
+- `inspectDay`
+- `inspectCard`
+- `addCandidateCard`
+- `appendCommentToCard`
+- `moveCardToSlot`
+- `renameDayLabel`
+- `createBackup`
+
+Safety boundaries retained:
+
+- Requires `Authorization: Bearer <GPT_ACTIONS_API_KEY>`.
+- No arbitrary Firestore path/collection/document writes.
+- No bulk import, repair from unknown source, reset, restore, delete, or silent full-document overwrite through GPT Actions.
+- Mutations write compact audit logs to `tripPlannerActionLogs/{logId}`.
+- Missing required fields return explicit errors.
+- `planId` defaults to `trips/main.tripMeta.activePlanId` when omitted.
+- Short dates such as `5/2` and `5-2` are matched against the selected plan days.
+- Server generates new card ids for `addCandidateCard`; client-provided card ids are ignored for creation.
+
+Verification passed after deploy:
+
+- `inspectTrip`: HTTP 200.
+- `inspectDay` (`5/2`, `afternoon`): HTTP 200.
+- `createBackup`: HTTP 200, backup `backup_20260426-195112_before-full-ops-final-curl-test`.
+- `addCandidateCard`: HTTP 200, smoke-test card created on Testing Board.
+- `inspectCard`: HTTP 200 for the smoke-test card.
+- `appendCommentToCard`: HTTP 200 for the smoke-test card.
+- `moveCardToSlot`: HTTP 200, smoke-test card moved to Testing Board 2026-05-07 evening.
+- `renameDayLabel`: HTTP 200; Testing Board 2026-05-07 label was restored to blank afterward via Jarvis ops cleanup.
+- `bulkImport`: HTTP 400 `ACTION_NOT_ENABLED`.
+- no API key: HTTP 401 `UNAUTHORIZED`.
+
+Cleanup note: smoke-test cards were removed from schedule placements after testing. Existing `jarvisDeleteCandidateCard` removes placements/cardOrder but does not fully delete nested `cards.{id}` because it merges the parent `cards` map; the orphan smoke-test card records remain in the candidate pool and can be cleaned in a later maintenance fix if desired.

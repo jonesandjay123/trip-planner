@@ -116,3 +116,27 @@ Implementation notes:
 ## Safety boundary for first endpoint stub
 
 The first `gptTripPlannerAction` code stub should not perform mutations. It should only prepare dispatch for `inspectTrip` and `inspectDay`, and return explicit `ACTION_NOT_ENABLED` errors for mutation actions until intentionally enabled later.
+
+## 2026-04-26 read-only MVP implementation
+
+Implemented `gptTripPlannerAction` as a read-only Custom GPT gateway:
+
+- Auth uses dedicated Firebase Functions secret `GPT_ACTIONS_API_KEY` via `Authorization: Bearer <key>`.
+- Enabled actions: `inspectTrip`, `inspectDay`.
+- Disabled actions return `ACTION_NOT_ENABLED`, including `addCandidateCard`, `appendCommentToCard`, `moveCardToSlot`, `renameDayLabel`, `createBackup`, reset, restore, delete, repair, bulk import, and full-document overwrite style actions.
+- `inspectTrip` uses Firestore `trips/main.tripMeta.activePlanId` when `planId` is omitted.
+- `inspectDay` uses the same active-plan fallback and accepts short dates such as `5/2` by matching against the active plan's `dayOrder`.
+- Each authenticated action writes a compact audit record to `tripPlannerActionLogs/{logId}` rather than growing `trips/main`.
+
+Validated locally:
+
+```bash
+npm --prefix functions run lint -- --fix=false
+npm run build
+```
+
+Deployment note: `GPT_ACTIONS_API_KEY` was created in Firebase Secret Manager, but the first deploy attempt failed while granting the Cloud Functions service account access to that secret because the current Firebase CLI account lacked `secretmanager.secrets.setIamPolicy`. Grant `roles/secretmanager.secretAccessor` on `GPT_ACTIONS_API_KEY` to `715210543670-compute@developer.gserviceaccount.com` (or temporarily grant the deployer enough Secret Manager IAM to let Firebase CLI do it), then run:
+
+```bash
+npx -y firebase-tools@latest deploy --project trip-planner-ab5a9 --only functions:gptTripPlannerAction --non-interactive
+```

@@ -3,30 +3,19 @@ info:
   title: Trip Planner GPT Actions API
   version: 0.1.0
   description: |
-    Draft OpenAPI schema for Jones's Trip Planner Custom GPT Actions MVP.
-    First version intentionally exposes only read-only and low-risk operations.
+    OpenAPI schema for Jones's Trip Planner Custom GPT Actions read-only MVP.
+    The endpoint currently enables only inspectTrip and inspectDay.
+    Mutation, backup, reset, restore, delete, repair, bulk import, and full-document overwrite actions are disabled server-side.
 servers:
-  # TODO after deploy: replace this placeholder with the real deployed origin.
-  # Keep it lowercase. GPT Builder validates that every server URL is under the
-  # same root origin; uppercase placeholders such as REGION-PROJECT can trigger
-  # a false mismatch against https://region-project.cloudfunctions.net.
-  #
-  # Option A, Firebase Functions base origin:
-  #   url: https://<region>-<project-id>.cloudfunctions.net
-  #   paths: keep /gptTripPlannerAction below
-  #
-  # Option B, complete Firebase Functions v2 / Cloud Run function URL:
-  #   url: https://<actual-function-host-or-url-containing-gptTripPlannerAction>
-  #   paths: change /gptTripPlannerAction to /
-  - url: https://region-project.cloudfunctions.net
-    description: TODO replace after deploy; placeholder only, not a real endpoint.
+  - url: https://us-central1-trip-planner-ab5a9.cloudfunctions.net
+    description: Firebase Functions base origin for Trip Planner GPT Actions.
 paths:
   /gptTripPlannerAction:
     post:
       operationId: gptTripPlannerAction
-      summary: Inspect or safely update the Tokyo May 2026 trip planner.
+      summary: Inspect the active Tokyo May 2026 trip planner.
       description: |
-        Gateway endpoint for Custom GPT Actions. Destructive operations such as reset, restore, delete, repair, and bulk overwrite are intentionally not supported.
+        Gateway endpoint for Custom GPT Actions. MVP currently enables only read-only actions: inspectTrip and inspectDay. Other schema-listed actions are reserved for future use and return ACTION_NOT_ENABLED. Destructive operations such as reset, restore, delete, repair, bulk import, and full-document overwrite are not supported.
       security:
         - bearerAuth: []
       requestBody:
@@ -36,13 +25,15 @@ paths:
             schema:
               $ref: '#/components/schemas/GptTripPlannerActionRequest'
             examples:
+              inspectTrip:
+                value:
+                  action: inspectTrip
               inspectDay:
                 value:
                   action: inspectDay
-                  planId: plan_1777054282117
-                  date: '2026-05-02'
+                  date: '5/2'
                   zone: afternoon
-              addCandidateCard:
+              disabledMutation:
                 value:
                   action: addCandidateCard
                   card:
@@ -51,7 +42,7 @@ paths:
                     area: Nakano
                     zone: afternoon
                     duration: 2-3 hr
-                    note: 適合買玩具、模型、電子零件
+                    note: Server returns ACTION_NOT_ENABLED during the read-only MVP.
                     tags: [購物, 動漫, 模型]
       responses:
         '200':
@@ -132,10 +123,10 @@ components:
             - createBackup
         planId:
           type: string
-          description: Optional plan id. If omitted, the gateway may use activePlanId or a safe default.
+          description: Optional plan id. If omitted, the gateway reads the current Firestore activePlanId.
         date:
           type: string
-          description: Date in YYYY-MM-DD format.
+          description: Date such as YYYY-MM-DD, YYYY-M-D, M/D, or M-D. Short dates are matched against the active trip's days.
         zone:
           $ref: '#/components/schemas/Zone'
         cardId:

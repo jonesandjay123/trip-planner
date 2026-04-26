@@ -14,6 +14,23 @@ const FieldValue = admin.firestore.FieldValue;
 
 const TRIP_DOC_PATH = "trips/main";
 const VALID_ZONES = ["morning", "afternoon", "evening", "flexible"];
+const GPT_READONLY_ACTIONS = new Set(["inspectTrip", "inspectDay"]);
+const GPT_DISABLED_ACTIONS = new Set([
+  "inspectCard",
+  "addCandidateCard",
+  "appendCommentToCard",
+  "moveCardToSlot",
+  "renameDayLabel",
+  "createBackup",
+  "reset",
+  "restore",
+  "delete",
+  "repair",
+  "bulkImport",
+  "bulkOverwrite",
+  "fullDocumentOverwrite",
+]);
+const GPT_ZONE_ORDER = ["morning", "afternoon", "evening", "night", "flexible"];
 const JARVIS_SHARED_SECRET = defineSecret("JARVIS_SHARED_SECRET");
 const GPT_ACTIONS_API_KEY = defineSecret("GPT_ACTIONS_API_KEY");
 
@@ -240,10 +257,7 @@ async function appendActivityLog(entry) {
 }
 
 function sendGptActionJson(response, status, body) {
-  response.status(status).json({
-    auditId: `gpt_action_${Date.now()}`,
-    ...body,
-  });
+  response.status(status).json(body);
 }
 
 function assertGptActionBearer(request) {
@@ -260,34 +274,166 @@ function assertGptActionBearer(request) {
   return provided && timingSafeEqualString(provided, expected);
 }
 
-function summarizePlanForGpt(trip, planId, activePlanId) {
+function summarizeGptCard(trip, id) {
+  const card = trip.cards?.[id] || {id, title: id};
+  return {
+    id,
+    title: card.title || id,
+    subtitle: card.subtitle || "",
+    area: card.area || "",
+    duration: card.duration || "",
+    zone: card.zone || "",
+    tags: Array.isArray(card.tags) ? card.tags.slice(0, 6) : [],
+    hasLocation: Boolean(card.location && Number.isFinite(Number(card.location.lat)) && Number.isFinite(Number(card.location.lng))),
+  };
+}
+
+function resolveActivePlanId(trip, requestedPlanId) {
+  const plans = trip && typeof trip.plans === "object" && trip.plans ? trip.plans : {};
+  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : Object.keys(plans);
+  const requested = String(requestedPlanId || "").trim();
+
+  if (requested && plans[requested]) {
+    return requested;
+  }
+
+  const activePlanId = String(trip.tripMeta?.activePlanId || "").trim();
+  if (activePlanId && plans[activePlanId]) {
+    return activePlanId;
+  }
+
+  return planOrder.find((planId) => plans[planId]) || null;
+}
+
+function summarizePlanDayForGpt(trip, plan, date) {
+  const zones = plan.days?.[date] || {};
+  const zoneSummaries = {};
+  for (const zone of GPT_ZONE_ORDER) {
+    const ids = Array.isArray(zones[zone]) ? zones[zone] : [];
+    zoneSummaries[zone] = {
+      count: ids.length,
+      cards: ids.slice(0, 6).map((id) => summarizeGptCard(trip, id)),
+    };
+  }
+
+  return {
+    date,
+    label: plan.dayLabels?.[date] || "",
+    zones: zoneSummaries,
+    scheduledCardCount: Object.values(zones).reduce((sum, ids) => sum + (Array.isArray(ids) ? ids.length : 0), 0),
+  };
+}
+
+function summarizePlanForGpt(trip, planId, activePlanId, {includeDays = true} = {}) {
   const plan = trip.plans?.[planId] || {};
+  const dayOrder = Array.isArray(plan.dayOrder) ? plan.dayOrder : Object.keys(plan.days || {}).sort();
+  const scheduledCardCount = Object.values(plan.days || {}).reduce((sum, zones) => {
+    return sum + Object.values(zones || {}).reduce((inner, ids) => inner + (Array.isArray(ids) ? ids.length : 0), 0);
+  }, 0);
+
   return {
     id: planId,
     name: plan.name || planId,
     isActive: planId === activePlanId,
-    dayOrder: Array.isArray(plan.dayOrder) ? plan.dayOrder : [],
+    dayOrder,
     dayLabels: plan.dayLabels || {},
-    scheduledCardCount: Object.values(plan.days || {}).reduce((sum, zones) => {
-      return sum + Object.values(zones || {}).reduce((inner, ids) => inner + (Array.isArray(ids) ? ids.length : 0), 0);
-    }, 0),
+    scheduledCardCount,
+    days: includeDays ? dayOrder.map((date) => summarizePlanDayForGpt(trip, plan, date)) : undefined,
   };
 }
 
-async function inspectTripForGptAction() {
+function normalizeTripDateForGpt(rawDate, trip, plan) {
+  const input = String(rawDate || "").trim();
+  if (!input) return "";
+
+  const dayOrder = Array.isArray(plan.dayOrder) ? plan.dayOrder : Object.keys(plan.days || {}).sort();
+  if (dayOrder.includes(input)) return input;
+
+  const full = input.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (full) {
+    const normalized = `${full[1]}-${full[2].padStart(2, "0")}-${full[3].padStart(2, "0")}`;
+    if (dayOrder.includes(normalized)) return normalized;
+    return normalized;
+  }
+
+  const monthDay = input.match(/^(\d{1,2})[-/](\d{1,2})$/);
+  if (monthDay) {
+    const month = monthDay[1].padStart(2, "0");
+    const day = monthDay[2].padStart(2, "0");
+    const matched = dayOrder.find((date) => date.endsWith(`-${month}-${day}`));
+    if (matched) return matched;
+
+    const tripYear = String(trip.tripMeta?.startDate || "").match(/^(\d{4})-/)?.[1] ||
+      dayOrder.find((date) => /^\d{4}-/.test(date))?.slice(0, 4) ||
+      new Date().getFullYear().toString();
+    return `${tripYear}-${month}-${day}`;
+  }
+
+  return input;
+}
+
+function normalizeGptZone(rawZone) {
+  const zone = String(rawZone || "").trim().toLowerCase();
+  return GPT_ZONE_ORDER.includes(zone) ? zone : "";
+}
+
+function buildGptActionResponse({auditId, ...body}) {
+  return {
+    auditId,
+    ...body,
+  };
+}
+
+async function appendGptActionLog({action, requestPayload, result, actor, riskLevel}) {
+  const ref = db.collection("tripPlannerActionLogs").doc();
+  await ref.set({
+    source: "custom-gpt-action",
+    action: action || "unknown",
+    request: requestPayload || {},
+    resultSummary: result?.summary || "",
+    actor: actor || "custom-gpt-action",
+    riskLevel,
+    ok: Boolean(result?.ok),
+    errorCode: result?.errorCode || null,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return ref.id;
+}
+
+async function inspectTripForGptAction(payload) {
   const trip = await getTripStateOrThrow();
-  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : [];
-  const activePlanId = trip.tripMeta?.activePlanId || planOrder[0] || null;
-  const plans = planOrder.map((planId) => summarizePlanForGpt(trip, planId, activePlanId));
+  const planOrder = Array.isArray(trip.planOrder) ? trip.planOrder : Object.keys(trip.plans || {});
+  const activePlanId = resolveActivePlanId(trip, payload.planId);
+  const requestedPlanOnly = Boolean(String(payload.planId || "").trim());
+  const plans = requestedPlanOnly && activePlanId ?
+    [summarizePlanForGpt(trip, activePlanId, resolveActivePlanId(trip))] :
+    planOrder
+        .filter((planId) => trip.plans?.[planId])
+        .map((planId) => summarizePlanForGpt(trip, planId, activePlanId, {includeDays: planId === activePlanId}));
+
+  if (String(payload.planId || "").trim() && !trip.plans?.[String(payload.planId).trim()]) {
+    return {
+      ok: false,
+      action: "inspectTrip",
+      summary: `Plan not found: ${String(payload.planId).trim()}.`,
+      errorCode: "PLAN_NOT_FOUND",
+      message: `Plan not found: ${String(payload.planId).trim()}.`,
+    };
+  }
 
   return {
     ok: true,
     action: "inspectTrip",
-    summary: `Trip has ${plans.length} plans and ${Object.keys(trip.cards || {}).length} cards. Active plan: ${activePlanId || "none"}.`,
+    summary: `Trip ${trip.tripMeta?.title || trip.tripMeta?.name || "main"} has ${plans.length} returned plan(s), ${planOrder.length} total plan(s), and ${Object.keys(trip.cards || {}).length} cards. Active plan: ${activePlanId || "none"}.`,
     data: {
-      tripMeta: trip.tripMeta || {},
+      trip: {
+        id: trip.tripMeta?.id || "main",
+        title: trip.tripMeta?.title || trip.tripMeta?.name || "",
+        startDate: trip.tripMeta?.startDate || "",
+        endDate: trip.tripMeta?.endDate || "",
+      },
       activePlanId,
-      planCount: plans.length,
+      planCount: planOrder.length,
       cardCount: Object.keys(trip.cards || {}).length,
       plans,
     },
@@ -296,11 +442,10 @@ async function inspectTripForGptAction() {
 }
 
 async function inspectDayForGptAction(payload) {
-  const planId = String(payload.planId || "default").trim() || "default";
-  const date = String(payload.date || "").trim();
-  const requestedZone = String(payload.zone || "").trim();
+  const rawDate = String(payload.date || "").trim();
+  const requestedZone = normalizeGptZone(payload.zone);
 
-  if (!date) {
+  if (!rawDate) {
     return {
       ok: false,
       action: "inspectDay",
@@ -311,58 +456,58 @@ async function inspectDayForGptAction(payload) {
   }
 
   const trip = await getTripStateOrThrow();
-  const plan = trip.plans?.[planId];
+  const planId = resolveActivePlanId(trip, payload.planId);
+  const plan = planId ? trip.plans?.[planId] : null;
   if (!plan) {
     return {
       ok: false,
       action: "inspectDay",
-      summary: `Plan not found: ${planId}.`,
+      summary: `Plan not found: ${String(payload.planId || "active plan").trim()}.`,
       errorCode: "PLAN_NOT_FOUND",
-      message: `Plan not found: ${planId}.`,
+      message: `Plan not found: ${String(payload.planId || "active plan").trim()}.`,
     };
   }
 
-  const day = plan.days?.[date];
-  if (!day) {
+  if (String(payload.planId || "").trim() && !trip.plans?.[String(payload.planId).trim()]) {
     return {
       ok: false,
       action: "inspectDay",
-      summary: `Day not found: ${date}.`,
-      errorCode: "DAY_NOT_FOUND",
-      message: `Day not found: ${date}.`,
+      summary: `Plan not found: ${String(payload.planId).trim()}.`,
+      errorCode: "PLAN_NOT_FOUND",
+      message: `Plan not found: ${String(payload.planId).trim()}.`,
     };
   }
 
-  const zonesToReturn = VALID_ZONES.includes(requestedZone) ? [requestedZone] : VALID_ZONES;
+  const date = normalizeTripDateForGpt(rawDate, trip, plan);
+  const day = plan.days?.[date] || {};
+  const dayExists = Boolean(plan.days?.[date]);
+  const zonesToReturn = requestedZone ? [requestedZone] : GPT_ZONE_ORDER;
   const zoneDetails = {};
+
   for (const zone of zonesToReturn) {
     const ids = Array.isArray(day[zone]) ? day[zone] : [];
-    zoneDetails[zone] = ids.map((id) => {
-      const card = trip.cards?.[id] || {id, title: id};
-      return {
-        id,
-        title: card.title || id,
-        subtitle: card.subtitle || "",
-        area: card.area || "",
-        duration: card.duration || "",
-      };
-    });
+    zoneDetails[zone] = ids.map((id) => summarizeGptCard(trip, id));
   }
 
   const cardCount = Object.values(zoneDetails).reduce((sum, cards) => sum + cards.length, 0);
-  const zoneText = VALID_ZONES.includes(requestedZone) ? `${requestedZone} ` : "";
+  const zoneText = requestedZone ? `${requestedZone} ` : "";
 
   return {
     ok: true,
     action: "inspectDay",
-    summary: `${date} ${zoneText}has ${cardCount} scheduled cards in plan ${planId}.`,
+    summary: dayExists ?
+      `${date} ${zoneText}has ${cardCount} scheduled card(s) in plan ${planId}.` :
+      `${date} is not in plan ${planId}; returning an empty result.`,
     data: {
       planId,
+      planName: plan.name || planId,
       date,
+      requestedDate: rawDate,
+      requestedZone: requestedZone || null,
       label: plan.dayLabels?.[date] || "",
       zones: zoneDetails,
     },
-    warnings: [],
+    warnings: dayExists ? [] : [`Day not found in plan: ${date}`],
   };
 }
 
@@ -396,35 +541,80 @@ exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY]}, async
 
   const payload = request.body && typeof request.body === "object" ? request.body : {};
   const action = String(payload.action || "").trim();
+  const actor = String(payload.actor || request.get("user-agent") || "custom-gpt-action").slice(0, 200);
 
   try {
-    if (action === "inspectTrip") {
-      sendGptActionJson(response, 200, await inspectTripForGptAction());
-      return;
+    let result;
+    let status = 200;
+    let riskLevel = "read";
+
+    if (!action) {
+      status = 400;
+      riskLevel = "blocked";
+      result = {
+        ok: false,
+        action: "unknown",
+        summary: "Missing action.",
+        errorCode: "MISSING_ACTION",
+        message: "action is required.",
+      };
+    } else if (GPT_READONLY_ACTIONS.has(action)) {
+      result = action === "inspectTrip" ?
+        await inspectTripForGptAction(payload) :
+        await inspectDayForGptAction(payload);
+      status = result.ok ? 200 : 400;
+    } else if (GPT_DISABLED_ACTIONS.has(action)) {
+      status = 400;
+      riskLevel = "blocked";
+      result = {
+        ok: false,
+        action,
+        summary: "ACTION_NOT_ENABLED: this read-only MVP enables only inspectTrip and inspectDay.",
+        errorCode: "ACTION_NOT_ENABLED",
+        message: "Mutation, backup, reset, restore, repair, delete, bulk, and card-level actions are intentionally disabled.",
+      };
+    } else {
+      status = 400;
+      riskLevel = "blocked";
+      result = {
+        ok: false,
+        action,
+        summary: `Invalid action: ${action}.`,
+        errorCode: "INVALID_ACTION",
+        message: "Allowed MVP actions are inspectTrip and inspectDay.",
+      };
     }
 
-    if (action === "inspectDay") {
-      const result = await inspectDayForGptAction(payload);
-      sendGptActionJson(response, result.ok ? 200 : 400, result);
-      return;
-    }
-
-    sendGptActionJson(response, 400, {
-      ok: false,
-      action: action || "unknown",
-      summary: "This GPT Actions endpoint stub currently enables only inspectTrip and inspectDay.",
-      errorCode: "ACTION_NOT_ENABLED",
-      message: "Mutation and card-level actions are intentionally disabled in the first stub.",
+    const auditId = await appendGptActionLog({
+      action,
+      requestPayload: payload,
+      result,
+      actor,
+      riskLevel,
     });
+    sendGptActionJson(response, status, buildGptActionResponse({auditId, ...result}));
   } catch (error) {
     logger.error("gptTripPlannerAction failed", {action, error});
-    sendGptActionJson(response, 500, {
+    const result = {
       ok: false,
       action: action || "unknown",
       summary: "Internal error while handling GPT Trip Planner action.",
       errorCode: "INTERNAL",
       message: error && error.message ? error.message : "Unknown error",
-    });
+    };
+    let auditId = `gpt_action_error_${Date.now()}`;
+    try {
+      auditId = await appendGptActionLog({
+        action,
+        requestPayload: payload,
+        result,
+        actor,
+        riskLevel: "blocked",
+      });
+    } catch (auditError) {
+      logger.error("Failed to write GPT action audit log", {auditError});
+    }
+    sendGptActionJson(response, 500, buildGptActionResponse({auditId, ...result}));
   }
 });
 

@@ -2,6 +2,12 @@
 
 > Date: 2026-04-26
 
+## Custom GPT link
+
+Trip Planner Ops GPT:
+
+<https://chatgpt.com/g/g-69ee212546d08191b1b36ff457ea3357-trip-planner-ops-gpt>
+
 ## GPT Builder result so far
 
 Jones created a ChatGPT Custom GPT named Trip Planner Ops GPT and pasted `openapi/gpt-trip-planner-actions.yaml` into the GPT Builder Actions editor.

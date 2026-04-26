@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -32,6 +32,7 @@ export default function Header({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tripName);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef(null);
 
   function handleDoubleClick() {
     if (!canEdit) return;
@@ -63,6 +64,27 @@ export default function Header({
     action?.();
     closeMobileMenu();
   }
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined;
+
+    function handlePointerDown(event) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+        closeMobileMenu();
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') closeMobileMenu();
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <header className="header">
@@ -117,7 +139,7 @@ export default function Header({
           {planSelector}
         </div>
 
-        <div className="mobile-header-status">
+        <div className="mobile-header-status" ref={mobileMenuRef}>
           {authLoading ? (
             <span className="auth-mode viewer">Checking</span>
           ) : user ? (

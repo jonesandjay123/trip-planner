@@ -62,16 +62,28 @@ function buildGoogleMapsUrl(card) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-function SelectedMapFocus({ selectedEntry }) {
+function MapAutoViewport({ positions, selectedEntry }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!selectedEntry?.location) return;
-    map.flyTo([selectedEntry.location.lat, selectedEntry.location.lng], Math.max(map.getZoom(), 16), {
-      animate: true,
-      duration: 0.55,
-    });
-  }, [map, selectedEntry]);
+    if (selectedEntry?.location) {
+      map.flyTo([selectedEntry.location.lat, selectedEntry.location.lng], Math.max(map.getZoom(), 16), {
+        animate: true,
+        duration: 0.55,
+      });
+      return;
+    }
+
+    if (positions.length > 1) {
+      map.fitBounds(positions, {
+        padding: [42, 42],
+        maxZoom: 15,
+        animate: false,
+      });
+    } else if (positions.length === 1) {
+      map.setView(positions[0], 15, { animate: false });
+    }
+  }, [map, positions, selectedEntry]);
 
   return null;
 }
@@ -103,7 +115,6 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose, titl
   const selectedEntry = cardsWithLocation.find(({ card }) => card.id === selectedCardId) || null;
   const positions = cardsWithLocation.map(({ location }) => [location.lat, location.lng]);
   const center = positions[0] || [35.6762, 139.6503];
-  const bounds = positions.length > 1 ? positions : null;
   const tileUrl = import.meta.env.VITE_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   const tileAttribution = import.meta.env.VITE_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
@@ -175,12 +186,10 @@ export default function DayMapModal({ date, label, zones, cardMap, onClose, titl
               className="day-map"
               center={center}
               zoom={13}
-              bounds={bounds || undefined}
-              boundsOptions={{ padding: [36, 36] }}
               scrollWheelZoom
             >
               <TileLayer attribution={tileAttribution} url={tileUrl} />
-              <SelectedMapFocus selectedEntry={selectedEntry} />
+              <MapAutoViewport positions={positions} selectedEntry={selectedEntry} />
               {cardsWithLocation.map(({ card, zone, order, location }) => {
                 const isActive = selectedCardId === card.id;
                 return (

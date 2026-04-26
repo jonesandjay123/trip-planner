@@ -15,7 +15,7 @@ paths:
       operationId: gptTripPlannerAction
       summary: Inspect the active Tokyo May 2026 trip planner.
       description: |
-        Gateway endpoint for Custom GPT Actions. MVP currently enables only read-only actions: inspectTrip and inspectDay. Other schema-listed actions are reserved for future use and return ACTION_NOT_ENABLED. Destructive operations such as reset, restore, delete, repair, bulk import, and full-document overwrite are not supported.
+        Read-only Trip Planner gateway. MVP enables inspectTrip and inspectDay only; all mutations return ACTION_NOT_ENABLED.
       security:
         - bearerAuth: []
       requestBody:

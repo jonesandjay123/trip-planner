@@ -135,7 +135,13 @@ npm --prefix functions run lint -- --fix=false
 npm run build
 ```
 
-Deployment note: `GPT_ACTIONS_API_KEY` was created in Firebase Secret Manager, but the first deploy attempt failed while granting the Cloud Functions service account access to that secret because the current Firebase CLI account lacked `secretmanager.secrets.setIamPolicy`. Grant `roles/secretmanager.secretAccessor` on `GPT_ACTIONS_API_KEY` to `715210543670-compute@developer.gserviceaccount.com` (or temporarily grant the deployer enough Secret Manager IAM to let Firebase CLI do it), then run:
+Deployment status:
+
+1. `GPT_ACTIONS_API_KEY` was created in Firebase Secret Manager.
+2. The Cloud Functions default compute service account now has `roles/secretmanager.secretAccessor` on `GPT_ACTIONS_API_KEY`.
+3. The next deploy attempt progressed past secret access, then failed because the current Firebase CLI account lacks `cloudfunctions.functions.setIamPolicy`, which is required when deploying a new HTTPS function and configuring its invoker policy.
+
+Ask a project Owner to grant the deployer account Cloud Functions Admin, or otherwise grant the needed `cloudfunctions.functions.setIamPolicy` permission, then run:
 
 ```bash
 npx -y firebase-tools@latest deploy --project trip-planner-ab5a9 --only functions:gptTripPlannerAction --non-interactive

@@ -1,0 +1,168 @@
+openapi: 3.1.0
+info:
+  title: Trip Planner GPT Actions API
+  version: 0.1.0
+  description: |
+    Draft OpenAPI schema for Jones's Trip Planner Custom GPT Actions MVP.
+    First version intentionally exposes only read-only and low-risk operations.
+servers:
+  - url: https://REGION-PROJECT.cloudfunctions.net
+    description: Replace with deployed Firebase Functions base URL before importing into Custom GPT.
+paths:
+  /gptTripPlannerAction:
+    post:
+      operationId: gptTripPlannerAction
+      summary: Inspect or safely update the Tokyo May 2026 trip planner.
+      description: |
+        Gateway endpoint for Custom GPT Actions. Destructive operations such as reset, restore, delete, repair, and bulk overwrite are intentionally not supported.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GptTripPlannerActionRequest'
+            examples:
+              inspectDay:
+                value:
+                  action: inspectDay
+                  planId: plan_1777054282117
+                  date: '2026-05-02'
+                  zone: afternoon
+              addCandidateCard:
+                value:
+                  action: addCandidateCard
+                  card:
+                    title: 中野百老匯
+                    subtitle: Nakano Broadway
+                    area: Nakano
+                    zone: afternoon
+                    duration: 2-3 hr
+                    note: 適合買玩具、模型、電子零件
+                    tags: [購物, 動漫, 模型]
+      responses:
+        '200':
+          description: Action result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GptTripPlannerActionResponse'
+        '401':
+          description: Missing or invalid API key.
+        '400':
+          description: Invalid request or blocked action.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Zone:
+      type: string
+      enum: [morning, afternoon, evening, flexible]
+    LocationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        placeName:
+          type: string
+        address:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        source:
+          type: string
+          enum: [manual, geocoding, ai]
+        confidence:
+          type: string
+          enum: [high, medium, low]
+    CandidateCardInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+        area:
+          type: string
+        zone:
+          $ref: '#/components/schemas/Zone'
+        duration:
+          type: string
+        note:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        location:
+          $ref: '#/components/schemas/LocationInput'
+    GptTripPlannerActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum:
+            - inspectTrip
+            - inspectDay
+            - inspectCard
+            - addCandidateCard
+            - appendCommentToCard
+            - moveCardToSlot
+            - renameDayLabel
+            - createBackup
+        planId:
+          type: string
+          description: Optional plan id. If omitted, the gateway may use activePlanId or a safe default.
+        date:
+          type: string
+          description: Date in YYYY-MM-DD format.
+        zone:
+          $ref: '#/components/schemas/Zone'
+        cardId:
+          type: string
+        card:
+          $ref: '#/components/schemas/CandidateCardInput'
+        text:
+          type: string
+          description: Comment text for appendCommentToCard.
+        label:
+          type: string
+          description: Day label or backup label depending on action.
+        reason:
+          type: string
+          description: Backup reason for createBackup.
+        index:
+          type: integer
+          minimum: 0
+    GptTripPlannerActionResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, action, summary]
+      properties:
+        ok:
+          type: boolean
+        action:
+          type: string
+        summary:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        warnings:
+          type: array
+          items:
+            type: string
+        auditId:
+          type: string
+        errorCode:
+          type: string
+        message:
+          type: string

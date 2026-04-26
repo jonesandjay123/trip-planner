@@ -44,6 +44,7 @@
 - 🌐 **跨裝置存取** — 任何瀏覽器打開同一個網址都看到同一份資料
 - 🔐 **Google Auth 基礎骨架** — Header 右上角顯示登入狀態、登入後可編輯、未登入僅可查看
 - 🤖 **Jarvis 遠端寫入** — 已新增受控 callable functions：候選卡 / 留言、高風險排程操作（排入時段、clone/delete/reset plan、改 day label、改 trip 名稱）、Firestore 手動備份 / 檢查 / 還原
+- 🧩 **GPT Actions MVP 計畫** — 2026-04-25 決定優先做 Custom GPT → Firebase HTTPS gateway → Firestore 的 agent-operable interface；詳見 [`docs/GPT_ACTIONS_MVP.md`](./docs/GPT_ACTIONS_MVP.md)。
 
 ### UI/UX
 - 🌙 **深色模式** — 自動偵測系統偏好 + 手動切換
@@ -113,6 +114,12 @@ src/
 
 functions/
 └── index.js                # Cloud Functions: Gemini proxy + Jarvis controlled card/plan mutations + backup/restore
+
+openapi/
+└── gpt-trip-planner-actions.yaml  # Draft Custom GPT Actions schema
+
+docs/
+└── GPT_ACTIONS_MVP.md      # ChatGPT Custom GPT Actions MVP plan
 ```
 
 ## 🏗 資料結構（v7）
@@ -174,6 +181,15 @@ state = {
 - **Location optional** — 有 `location.lat/lng` 的卡片會出現在 day map / single-card map preview；沒有座標的卡片不阻擋排程，會列在地圖 modal 的「尚未定位」清單
 - **Location updates are narrow** — Jarvis / callable location patches 只應更新 `cards[cardId].location`，不要 import/restore 整份 export JSON，也不要碰 `plans` / `days` / `cardOrder`
 - **AI coordinates are candidates** — Gemini 生成的座標標為 `source: "ai"`；只有明確 POI 才可 high confidence，區域代表點用 medium/low，未來 geocoding 驗證後再標 `source: "geocoding"`
+
+## 🧩 GPT Actions MVP（2026-04-25）
+
+明天優先嘗試 ChatGPT Custom GPT Actions，而不是 Google Home。目標是新增一個安全的 `gptTripPlannerAction` HTTPS gateway endpoint，讓 Custom GPT 可以讀取和低風險修改 Firestore，並透過 `onSnapshot` 讓 UI 即時更新。
+
+第一版只允許：`inspectTrip`、`inspectDay`、`inspectCard`、`addCandidateCard`、`appendCommentToCard`、`moveCardToSlot`、`renameDayLabel`、`createBackup`。明確禁止 reset / restore / delete / repair / bulk overwrite。
+
+- 計畫：[`docs/GPT_ACTIONS_MVP.md`](./docs/GPT_ACTIONS_MVP.md)
+- OpenAPI 草案：[`openapi/gpt-trip-planner-actions.yaml`](./openapi/gpt-trip-planner-actions.yaml)
 
 ## 🚀 Getting Started
 

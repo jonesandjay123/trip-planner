@@ -32,7 +32,8 @@ export default function Header({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(tripName);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const mobileMenuRef = useRef(null);
+  const mobileMenuTriggerRef = useRef(null);
+  const mobileMenuPanelRef = useRef(null);
 
   function handleDoubleClick() {
     if (!canEdit) return;
@@ -69,7 +70,10 @@ export default function Header({
     if (!mobileMenuOpen) return undefined;
 
     function handlePointerDown(event) {
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+      const target = event.target;
+      const clickedTrigger = mobileMenuTriggerRef.current?.contains(target);
+      const clickedPanel = mobileMenuPanelRef.current?.contains(target);
+      if (!clickedTrigger && !clickedPanel) {
         closeMobileMenu();
       }
     }
@@ -139,7 +143,7 @@ export default function Header({
           {planSelector}
         </div>
 
-        <div className="mobile-header-status" ref={mobileMenuRef}>
+        <div className="mobile-header-status" ref={mobileMenuTriggerRef}>
           {authLoading ? (
             <span className="auth-mode viewer">Checking</span>
           ) : user ? (
@@ -173,7 +177,7 @@ export default function Header({
       </div>
 
       {mobileMenuOpen && (
-        <div className="mobile-header-menu">
+        <div className="mobile-header-menu" ref={mobileMenuPanelRef}>
           <button onClick={() => runMobileAction(onToggleDark)}>{darkMode ? '☀️ 淺色模式' : '🌙 深色模式'}</button>
           <button onClick={() => runMobileAction(onExport)}>📋 匯出行程</button>
           {canEdit && (

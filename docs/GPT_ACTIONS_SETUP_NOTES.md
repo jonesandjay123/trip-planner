@@ -137,12 +137,16 @@ npm run build
 
 Deployment status:
 
-1. `GPT_ACTIONS_API_KEY` was created in Firebase Secret Manager.
-2. The Cloud Functions default compute service account now has `roles/secretmanager.secretAccessor` on `GPT_ACTIONS_API_KEY`.
-3. The next deploy attempt progressed past secret access, then failed because the current Firebase CLI account lacks `cloudfunctions.functions.setIamPolicy`, which is required when deploying a new HTTPS function and configuring its invoker policy.
+Deployed successfully on 2026-04-26 after granting the deploy account `roles/cloudfunctions.admin` and setting the HTTPS function invoker to public. The function itself still enforces `Authorization: Bearer <GPT_ACTIONS_API_KEY>` before reading Firestore.
 
-Ask a project Owner to grant the deployer account Cloud Functions Admin, or otherwise grant the needed `cloudfunctions.functions.setIamPolicy` permission, then run:
+Endpoint:
 
-```bash
-npx -y firebase-tools@latest deploy --project trip-planner-ab5a9 --only functions:gptTripPlannerAction --non-interactive
+```text
+https://us-central1-trip-planner-ab5a9.cloudfunctions.net/gptTripPlannerAction
 ```
+
+Verification passed:
+
+- `inspectTrip` returned HTTP 200, active plan `plan_1777054282117`, trip `Tokyo Trip 2026`, 3 plans, 83 cards.
+- `inspectDay` with `date: "5/2"`, `zone: "afternoon"` returned HTTP 200, normalized date `2026-05-02`, label `🥩 肉屋橫町＋秋葉原`, 10 afternoon cards.
+- `addCandidateCard` returned HTTP 400 with `ACTION_NOT_ENABLED`.

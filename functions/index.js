@@ -511,7 +511,7 @@ async function inspectDayForGptAction(payload) {
   };
 }
 
-exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY]}, async (request, response) => {
+exports.gptTripPlannerAction = onRequest({secrets: [GPT_ACTIONS_API_KEY], invoker: "public"}, async (request, response) => {
   if (request.method === "OPTIONS") {
     response.status(204).send("");
     return;

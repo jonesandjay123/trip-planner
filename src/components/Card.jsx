@@ -18,7 +18,7 @@ function formatCommentDate(timestamp) {
   return `${month}/${day} ${h}:${m}`;
 }
 
-function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProps, onToggle, onEdit, onDelete, onUnassign, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
+function CardContent({ card, isDragOverlay, currentZone, compact, canEdit, dragHandleProps, onToggle, onEdit, onDelete, onUnassign, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
   const [commentText, setCommentText] = useState('');
   const [editingIdx, setEditingIdx] = useState(-1);
   const [editDraft, setEditDraft] = useState('');
@@ -29,7 +29,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
     return (
       <div className={`card card-compact ${isDragOverlay ? 'card-overlay' : ''} ${zoneMatch ? 'card-zone-match' : ''}`}>
         <div className="card-compact-row">
-          {!isDragOverlay && (
+          {!isDragOverlay && canEdit && (
             <button className="card-drag-handle" type="button" title="拖曳移動" {...dragHandleProps}>☰</button>
           )}
           <span className="card-compact-title">📍 {card.title}</span>
@@ -75,7 +75,7 @@ function CardContent({ card, isDragOverlay, currentZone, compact, dragHandleProp
     <div className={`card ${isDragOverlay ? 'card-overlay' : ''} ${zoneMatch ? 'card-zone-match' : ''}`}>
       <div className="card-header-row">
         <div className="card-title-row">
-          {!isDragOverlay && (
+          {!isDragOverlay && canEdit && (
             <button className="card-drag-handle" type="button" title="拖曳移動" {...dragHandleProps}>☰</button>
           )}
           <div className="card-title">📍 {card.title}</div>
@@ -269,7 +269,7 @@ function SortableCardShell({ card, children }) {
   });
 }
 
-export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit, onDelete, onUnassign, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
+export default function Card({ card, isDragOverlay, currentZone, inPool, canEdit = false, onEdit, onDelete, onUnassign, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
   const [expanded, setExpanded] = useState(false);
 
   const showCompact = !inPool && !expanded && !isDragOverlay;
@@ -282,6 +282,7 @@ export default function Card({ card, isDragOverlay, currentZone, inPool, onEdit,
         isDragOverlay={isDragOverlay}
         currentZone={currentZone}
         compact={showCompact}
+        canEdit={canEdit}
         dragHandleProps={dragHandleProps}
         onToggle={inPool ? undefined : () => setExpanded((v) => !v)}
         onEdit={showActions ? onEdit : undefined}

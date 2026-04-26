@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import Card from './Card';
 
-export default function CandidatePool({ cardIds, cardMap, panelOpen, currentDayLabel, onClosePanel, onAddToZone, onAddNew, onAiGenerate, onEdit, onDeleteCard, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
+export default function CandidatePool({ cardIds, cardMap, panelOpen, currentDayLabel, canEdit = false, onClosePanel, onAddToZone, onAddNew, onAiGenerate, onEdit, onDeleteCard, onOpenMap, onAddComment, onEditComment, onDeleteComment }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled' });
 
   return (
@@ -13,12 +13,18 @@ export default function CandidatePool({ cardIds, cardMap, panelOpen, currentDayL
         <span className="pool-title">候選行程</span>
         <span className="pool-count">{cardIds.length} 個行程</span>
         {currentDayLabel && <span className="pool-current-day">加入到：{currentDayLabel}</span>}
-        <button className="btn btn-add-card" onClick={onAddNew}>
-          ➕ 新增
-        </button>
-        <button className="btn btn-ai-generate" onClick={onAiGenerate}>
-          🤖 AI 推薦
-        </button>
+        {canEdit ? (
+          <>
+            <button className="btn btn-add-card" onClick={onAddNew}>
+              ➕ 新增
+            </button>
+            <button className="btn btn-ai-generate" onClick={onAiGenerate}>
+              🤖 AI 推薦
+            </button>
+          </>
+        ) : (
+          <span className="viewer-edit-hint">登入後可新增 / AI 推薦</span>
+        )}
         <button className="btn btn-close-pool" onClick={onClosePanel}>
           ✕ 關閉
         </button>
@@ -37,8 +43,8 @@ export default function CandidatePool({ cardIds, cardMap, panelOpen, currentDayL
             if (!card) return null;
             return (
               <div key={id} className="pool-card-item">
-                <Card card={card} inPool onEdit={onEdit} onDelete={onDeleteCard} onOpenMap={onOpenMap} onAddComment={onAddComment} onEditComment={onEditComment} onDeleteComment={onDeleteComment} />
-                {onAddToZone && (
+                <Card card={card} inPool canEdit={canEdit} onEdit={canEdit ? onEdit : undefined} onDelete={canEdit ? onDeleteCard : undefined} onOpenMap={onOpenMap} onAddComment={canEdit ? onAddComment : undefined} onEditComment={canEdit ? onEditComment : undefined} onDeleteComment={canEdit ? onDeleteComment : undefined} />
+                {canEdit && onAddToZone && (
                   <div className="mobile-quick-add-row">
                     <button onClick={() => onAddToZone(id, 'morning')}>☀️ 早</button>
                     <button onClick={() => onAddToZone(id, 'afternoon')}>🌤️ 午</button>

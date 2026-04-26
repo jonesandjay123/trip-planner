@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, onRename, onClearPlan }) {
+export default function PlanSelector({ plans, activePlanId, canEdit = false, onSwitch, onClone, onRename, onClearPlan }) {
   return (
     <div className="plan-selector">
       <label className="plan-selector-label" htmlFor="plan-selector-native">📋 方案：</label>
@@ -18,17 +18,23 @@ export default function PlanSelector({ plans, activePlanId, onSwitch, onClone, o
         ))}
       </select>
 
-      <button className="btn btn-clone btn-icon-only" onClick={() => onRename?.(activePlanId)} title="修改目前方案名稱" aria-label="修改目前方案名稱">
-        ✏️
-      </button>
-      <button className="btn btn-clone" onClick={onClone} title="複製當前方案" aria-label="複製當前方案">
-        <span className="desktop-action-text">📑 Clone</span>
-        <span className="mobile-action-icon">📑</span>
-      </button>
-      <button className="btn btn-clone btn-clear-plan" onClick={onClearPlan} title="清空目前方案排程" aria-label="清空目前方案排程">
-        <span className="desktop-action-text">🧹 清空方案</span>
-        <span className="mobile-action-icon">🧹</span>
-      </button>
+      {canEdit ? (
+        <>
+          <button className="btn btn-clone btn-icon-only" onClick={() => onRename?.(activePlanId)} title="修改目前方案名稱" aria-label="修改目前方案名稱">
+            ✏️
+          </button>
+          <button className="btn btn-clone" onClick={onClone} title="複製當前方案" aria-label="複製當前方案">
+            <span className="desktop-action-text">📑 Clone</span>
+            <span className="mobile-action-icon">📑</span>
+          </button>
+          <button className="btn btn-clone btn-clear-plan" onClick={onClearPlan} title="清空目前方案排程" aria-label="清空目前方案排程">
+            <span className="desktop-action-text">🧹 清空方案</span>
+            <span className="mobile-action-icon">🧹</span>
+          </button>
+        </>
+      ) : (
+        <span className="viewer-edit-hint">登入後可編輯方案</span>
+      )}
 
       {plans.length > 1 && (
         <span className="plan-count">{plans.length} 個方案</span>

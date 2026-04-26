@@ -18,6 +18,7 @@ export default function Header({
   onExport,
   onDeleteActivePlan,
   canDeletePlan,
+  canEdit,
   activePlanName,
   darkMode,
   onToggleDark,
@@ -33,6 +34,7 @@ export default function Header({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   function handleDoubleClick() {
+    if (!canEdit) return;
     setDraft(tripName);
     setEditing(true);
   }
@@ -78,7 +80,7 @@ export default function Header({
                 autoFocus
               />
             ) : (
-              <h1 className="trip-name" onDoubleClick={handleDoubleClick} title="雙擊編輯">
+              <h1 className="trip-name" onDoubleClick={handleDoubleClick} title={canEdit ? '雙擊編輯' : '登入後可編輯旅程名稱'}>
                 {tripName}
               </h1>
             )}
@@ -99,14 +101,16 @@ export default function Header({
           <button className="btn btn-export" onClick={onExport}>
             📋 匯出
           </button>
-          <button
-            className="btn btn-reset"
-            onClick={onDeleteActivePlan}
-            disabled={!canDeletePlan}
-            title={canDeletePlan ? `刪除目前方案：${activePlanName || ''}` : '只剩一個方案，不能刪除'}
-          >
-            🗑️ 刪方案
-          </button>
+          {canEdit && (
+            <button
+              className="btn btn-reset"
+              onClick={onDeleteActivePlan}
+              disabled={!canDeletePlan}
+              title={canDeletePlan ? `刪除目前方案：${activePlanName || ''}` : '只剩一個方案，不能刪除'}
+            >
+              🗑️ 刪除目前方案
+            </button>
+          )}
         </div>
 
         <div className="header-plan-row">
@@ -150,9 +154,11 @@ export default function Header({
         <div className="mobile-header-menu">
           <button onClick={() => runMobileAction(onToggleDark)}>{darkMode ? '☀️ 淺色模式' : '🌙 深色模式'}</button>
           <button onClick={() => runMobileAction(onExport)}>📋 匯出行程</button>
-          <button disabled={!canDeletePlan} onClick={() => runMobileAction(onDeleteActivePlan)}>
-            🗑️ {canDeletePlan ? `刪除方案${activePlanName ? `：${activePlanName}` : ''}` : '只剩一個方案，不能刪除'}
-          </button>
+          {canEdit && (
+            <button disabled={!canDeletePlan} onClick={() => runMobileAction(onDeleteActivePlan)}>
+              🗑️ {canDeletePlan ? `刪除目前方案${activePlanName ? `：${activePlanName}` : ''}` : '只剩一個方案，不能刪除'}
+            </button>
+          )}
           {user ? (
             <button onClick={() => runMobileAction(onLogout)}>🚪 登出</button>
           ) : (

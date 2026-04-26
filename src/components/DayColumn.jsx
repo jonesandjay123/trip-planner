@@ -12,11 +12,12 @@ function formatDayHeader(dateStr) {
   return `${m}/${day} (${dow})`;
 }
 
-export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst, isLast, isMobileSelected, onEditCard, onDeleteCard, onUnassignCard, onOpenCardMap, onAddComment, onEditComment, onDeleteComment, onLabelChange, onOpenMap }) {
+export default function DayColumn({ date, zones, label, cardMap, canEdit = false, onSwap, isFirst, isLast, isMobileSelected, onEditCard, onDeleteCard, onUnassignCard, onOpenCardMap, onAddComment, onEditComment, onDeleteComment, onLabelChange, onOpenMap }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(label || '');
 
   function handleDoubleClick() {
+    if (!canEdit) return;
     setDraft(label || '');
     setEditing(true);
   }
@@ -38,14 +39,16 @@ export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst
   return (
     <div className={`day-column ${isMobileSelected ? 'mobile-day-active' : ''}`}>
       <div className="day-header">
-        <button
-          className="swap-btn"
-          onClick={() => onSwap(date, -1)}
-          disabled={isFirst}
-          title="往左移"
-        >
-          ◀
-        </button>
+        {canEdit && (
+          <button
+            className="swap-btn"
+            onClick={() => onSwap(date, -1)}
+            disabled={isFirst}
+            title="往左移"
+          >
+            ◀
+          </button>
+        )}
         <span className="day-date">{formatDayHeader(date)}</span>
         <div className="day-header-actions">
           <button
@@ -56,14 +59,16 @@ export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst
           >
             🗺️
           </button>
-          <button
-            className="swap-btn"
-            onClick={() => onSwap(date, 1)}
-            disabled={isLast}
-            title="往右移"
-          >
-            ▶
-          </button>
+          {canEdit && (
+            <button
+              className="swap-btn"
+              onClick={() => onSwap(date, 1)}
+              disabled={isLast}
+              title="往右移"
+            >
+              ▶
+            </button>
+          )}
         </div>
       </div>
 
@@ -80,8 +85,8 @@ export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst
             maxLength={20}
           />
         ) : (
-          <span className="day-label-text" title="雙擊編輯主題標籤">
-            {label || '📌 點擊加標籤'}
+          <span className="day-label-text" title={canEdit ? '雙擊編輯主題標籤' : '登入後可編輯主題標籤'}>
+            {label || (canEdit ? '📌 點擊加標籤' : '📌 尚未設定標籤')}
           </span>
         )}
       </div>
@@ -94,13 +99,14 @@ export default function DayColumn({ date, zones, label, cardMap, onSwap, isFirst
             date={date}
             cardIds={zones[zone] || []}
             cardMap={cardMap}
-            onEditCard={onEditCard}
-            onDeleteCard={onDeleteCard}
-            onUnassignCard={onUnassignCard}
+            canEdit={canEdit}
+            onEditCard={canEdit ? onEditCard : undefined}
+            onDeleteCard={canEdit ? onDeleteCard : undefined}
+            onUnassignCard={canEdit ? onUnassignCard : undefined}
             onOpenMap={onOpenCardMap}
-            onAddComment={onAddComment}
-            onEditComment={onEditComment}
-            onDeleteComment={onDeleteComment}
+            onAddComment={canEdit ? onAddComment : undefined}
+            onEditComment={canEdit ? onEditComment : undefined}
+            onDeleteComment={canEdit ? onDeleteComment : undefined}
           />
         ))}
       </div>

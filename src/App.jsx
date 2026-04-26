@@ -701,7 +701,8 @@ export default function App() {
           onTripNameChange={handleTripNameChange}
           onExport={handleExport}
           onDeleteActivePlan={() => handleDeletePlan(state.tripMeta.activePlanId)}
-          canDeletePlan={(state.planOrder || []).length > 1}
+          canDeletePlan={canEdit && (state.planOrder || []).length > 1}
+          canEdit={canEdit}
           activePlanName={activePlan?.name || ''}
           darkMode={darkMode}
           onToggleDark={() => setDarkMode((v) => !v)}
@@ -714,6 +715,7 @@ export default function App() {
             <PlanSelector
               plans={plansArray}
               activePlanId={state.tripMeta.activePlanId}
+              canEdit={canEdit}
               onSwitch={handleSwitchPlan}
               onClone={handleClonePlan}
               onRename={handleRenamePlan}
@@ -762,6 +764,7 @@ export default function App() {
               zones={activeDays[date]}
               label={(activePlan?.dayLabels || {})[date] || ''}
               cardMap={cardMap}
+              canEdit={canEdit}
               onSwap={handleSwapDay}
               isFirst={idx === 0}
               isLast={idx === activeDayOrder.length - 1}
@@ -784,6 +787,7 @@ export default function App() {
           cardMap={cardMap}
           panelOpen={candidatePanelOpen}
           currentDayLabel={formatMobileDate(currentMobileDay)}
+          canEdit={canEdit}
           onClosePanel={() => setCandidatePanelOpen(false)}
           onAddToZone={handleAddCandidateToMobileDay}
           onAddNew={openNewCardModal}
@@ -799,8 +803,14 @@ export default function App() {
         <div className="mobile-bottom-bar">
           <button onClick={() => setCandidatePanelOpen(false)}>📅 行程</button>
           <button onClick={() => setCandidatePanelOpen(true)}>🎒 候選 {unscheduledCardIds.length}</button>
-          <button onClick={openNewCardModal}>＋新增</button>
-          <button onClick={() => setAiModalOpen(true)}>🤖 AI</button>
+          {canEdit ? (
+            <>
+              <button onClick={openNewCardModal}>＋新增</button>
+              <button onClick={() => setAiModalOpen(true)}>🤖 AI</button>
+            </>
+          ) : (
+            <button onClick={() => handleLogin().catch((error) => console.error('❌ Google sign-in failed:', error))}>🔐 登入編輯</button>
+          )}
         </div>
       </div>
 

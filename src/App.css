@@ -1430,8 +1430,16 @@ body {
 }
 
 /* ===== AI Modal ===== */
+@property --ai-modal-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 .ai-modal {
-  background: linear-gradient(135deg, #f0ecff 0%, #e8e0ff 100%);
+  --ai-modal-surface: linear-gradient(135deg, #f0ecff 0%, #e8e0ff 100%);
+  --ai-modal-border-angle: 0deg;
+  background: var(--ai-modal-surface);
   border: 2px solid #9b7eea;
   border-radius: 16px;
   padding: 28px;
@@ -1449,36 +1457,27 @@ body {
 
 .ai-modal-loading {
   border-color: transparent;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 0 32px rgba(255, 203, 80, 0.42), 0 20px 70px rgba(168, 85, 247, 0.55);
+  background:
+    var(--ai-modal-surface) padding-box,
+    conic-gradient(from var(--ai-modal-border-angle), #8b5cf6, #22d3ee, #facc15, #fb7185, #8b5cf6) border-box;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 0 30px rgba(255, 203, 80, 0.34), 0 20px 70px rgba(168, 85, 247, 0.48);
+  animation: ai-modal-border-spin 1.45s linear infinite;
 }
 
-.ai-modal-loading::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 19px;
-  background: conic-gradient(from 0deg, #8b5cf6, #22d3ee, #facc15, #fb7185, #8b5cf6);
-  animation: ai-modal-glow-spin 1.45s linear infinite;
-  z-index: -1;
-}
-
-.ai-modal-loading::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 13px;
-  background: inherit;
-  z-index: -1;
-}
-
-@keyframes ai-modal-glow-spin {
+@keyframes ai-modal-border-spin {
   to {
-    transform: rotate(360deg);
+    --ai-modal-border-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-modal-loading {
+    animation: none;
   }
 }
 
 [data-theme="dark"] .ai-modal {
-  background: linear-gradient(135deg, #2d2250 0%, #1e1540 100%);
+  --ai-modal-surface: linear-gradient(135deg, #2d2250 0%, #1e1540 100%);
   border-color: #7c5cbf;
 }
 
